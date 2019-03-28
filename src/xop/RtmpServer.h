@@ -14,11 +14,18 @@ class RtmpServer : public TcpServer
 public:
     RtmpServer(xop::EventLoop *loop, std::string ip, uint16_t port = 1935);
     ~RtmpServer();
+        
+    void addSession(std::string streamPath);
+    void removeSession(std::string streamPath);
+    
+    RtmpSession::Ptr getSession(std::string streamPath);
+    bool hasSession(std::string streamPath);
     
 private:
     virtual TcpConnection::Ptr newConnection(SOCKET sockfd);
     
-    //std::unordered_map<MediaSessionId, std::shared_ptr<RtmpSession>> _rtmpSessions;
+    std::mutex m_mutex;
+    std::unordered_map<std::string, RtmpSession::Ptr> m_rtmpSessions; 
 }; 
     
 }

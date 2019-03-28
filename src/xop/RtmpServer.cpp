@@ -24,3 +24,35 @@ TcpConnection::Ptr RtmpServer::newConnection(SOCKET sockfd)
     return std::make_shared<RtmpConnection>(this, _eventLoop->getTaskScheduler().get(), sockfd);
 }
 
+void RtmpServer::addSession(std::string streamPath)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if(m_rtmpSessions.find(streamPath) == m_rtmpSessions.end())
+    {
+        m_rtmpSessions[streamPath] = std::make_shared<RtmpSession>();
+    }
+}
+
+void RtmpServer::removeSession(std::string streamPath)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_rtmpSessions.erase(streamPath);
+}
+
+bool RtmpServer::hasSession(std::string streamPath)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return (m_rtmpSessions.find(streamPath) != m_rtmpSessions.end());
+}
+
+RtmpSession::Ptr RtmpServer::getSession(std::string streamPath)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if(m_rtmpSessions.find(streamPath) == m_rtmpSessions.end())
+    {
+        return nullptr;
+    }
+    
+    return m_rtmpSessions[streamPath];
+}
+

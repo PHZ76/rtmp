@@ -38,7 +38,11 @@ void TcpConnection::send(std::shared_ptr<char> data, uint32_t size)
     if (_isClosed)
         return;
 
-    _writeBufferPtr->append(data, size);
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        _writeBufferPtr->append(data, size);
+    }
+    
     this->handleWrite();
     return;
 }
@@ -48,7 +52,11 @@ void TcpConnection::send(const char *data, uint32_t size)
     if (_isClosed)
         return;
 
-    _writeBufferPtr->append(data, size);
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        _writeBufferPtr->append(data, size);
+    }
+    
     this->handleWrite();
     return;
 }
@@ -85,6 +93,7 @@ void TcpConnection::handleRead()
 
 void TcpConnection::handleWrite()
 {
+    std::lock_guard<std::mutex> lock(_mutex);
     if (_isClosed)
         return;
 

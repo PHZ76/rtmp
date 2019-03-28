@@ -57,10 +57,12 @@ public:
         RTMP_ACK            = 0x3 , //确认
         RTMP_ACK_SIZE       = 0x5 , //窗口大小确认
         RTMP_BANDWIDTH_SIZE = 0x6 , //设置对端带宽
-        
+        RTMP_AUDIO	        = 0x08,
+        RTMP_VIDEO          = 0x09,
         RTMP_FLEX_MESSAGE   = 0x11, //amf3
         RTMP_NOTIFY         = 0x12, //
         RTMP_INVOKE         = 0x14, //amf0
+        RTMP_FLASH_VIDEO    = 0x16,
     };
     
     enum ChunkSreamId
@@ -92,6 +94,8 @@ private:
     bool handleMessage(RtmpMessage& rtmpMessage);
     bool handleInvoke(RtmpMessage& rtmpMessage);
     bool handleNotify(RtmpMessage& rtmpMessage);
+    bool handleVideo(RtmpMessage& rtmpMessage);
+    bool handleAudio(RtmpMessage& rtmpMessage);
     
     bool handleConnect();
     bool handleFCPublish();
@@ -99,11 +103,12 @@ private:
     bool handlePublish();
     bool handlePlay();
     bool handlePlay2();
+    
     void setPeerBandwidth(uint32_t size);
     void sendAcknowledgement(uint32_t size);
     void setChunkSize(uint32_t size);
     
-    bool sendRtmpMessage(uint8_t* data, uint32_t size, uint32_t csid, uint8_t msgType, uint32_t msgStreamId=0, uint32_t timestamp=0);
+    bool sendRtmpMessage(uint8_t* payload, uint32_t size, uint32_t csid, uint8_t msgType, uint32_t msgStreamId=0, uint32_t timestamp=0);  
     
     RtmpServer *m_rtmpServer;
     TaskScheduler *m_taskScheduler;

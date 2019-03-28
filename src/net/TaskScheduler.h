@@ -32,7 +32,7 @@ public:
 
     int getId() const 
     { return _id; }
-
+    
 protected:
     void wake();
     void handleTriggerEvent();

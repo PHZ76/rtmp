@@ -247,6 +247,12 @@ bool RtmpConnection::handleMessage(RtmpMessage& rtmpMessage)
     bool ret = true;  
     switch(rtmpMessage.msgType)
     {        
+        case RTMP_VIDEO:
+            ret = handleVideo(rtmpMessage);
+            break;
+        case RTMP_AUDIO:
+            ret = handleVideo(rtmpMessage);
+            break;
         case RTMP_INVOKE:
             ret = handleInvoke(rtmpMessage);
             break;
@@ -258,6 +264,9 @@ bool RtmpConnection::handleMessage(RtmpMessage& rtmpMessage)
             break;            
         case RTMP_CHUNK_SIZE:
             m_inChunkSize = readInt32BE((char*)rtmpMessage.data.get());
+            break;
+        case RTMP_FLASH_VIDEO:
+            throw std::runtime_error("unsupported flash video.");
             break;
         default:
             break;
@@ -356,6 +365,17 @@ bool RtmpConnection::handleNotify(RtmpMessage& rtmpMessage)
     return true;
 }
 
+bool RtmpConnection::handleVideo(RtmpMessage& rtmpMessage)
+{
+    
+    return true;
+}
+
+bool RtmpConnection::handleAudio(RtmpMessage& rtmpMessage)
+{
+    return true;
+}
+
 bool RtmpConnection::handleConnect()
 {
     if(!m_amfDec.hasObject("app"))
@@ -388,10 +408,8 @@ bool RtmpConnection::handleConnect()
     objects["code"] = AmfObject(std::string("NetConnection.Connect.Success"));
     objects["description"] = AmfObject(std::string("Connection succeeded."));
     objects["objectEncoding"] = AmfObject(0.0);
-    m_amfEnc.encodeObjects(objects);
-
-    //控制消息: msg stream id为0, chunk msg id 为2    
-    sendRtmpMessage(m_amfEnc.data().get(), m_amfEnc.size(), CHUNK_RESULT_ID, RTMP_INVOKE, 0);
+    m_amfEnc.encodeObjects(objects);  
+    sendRtmpMessage(m_amfEnc.data().get(), m_amfEnc.size(), CHUNK_RESULT_ID, RTMP_INVOKE);
     
     return true;
 }
@@ -417,7 +435,7 @@ bool RtmpConnection::handleFCPublish()
     m_amfEnc.encodeNumber(m_amfDec.getNumber());
     m_amfEnc.encodeObjects(objects);
     m_amfEnc.encodeObjects(objects);
-    sendRtmpMessage(m_amfEnc.data().get(), m_amfEnc.size(), CHUNK_RESULT_ID, RTMP_INVOKE, 0);
+    sendRtmpMessage(m_amfEnc.data().get(), m_amfEnc.size(), CHUNK_RESULT_ID, RTMP_INVOKE);
     
     return true;
 }
@@ -459,7 +477,7 @@ bool RtmpConnection::handlePublish()
     m_amfEnc.encodeNumber(m_amfDec.getNumber());
     m_amfEnc.encodeObjects(objects);
     m_amfEnc.encodeObjects(objects);
-    sendRtmpMessage(m_amfEnc.data().get(), m_amfEnc.size(), CHUNK_RESULT_ID, RTMP_INVOKE, 0);
+    sendRtmpMessage(m_amfEnc.data().get(), m_amfEnc.size(), CHUNK_RESULT_ID, RTMP_INVOKE);
     
     return true;
 }
@@ -481,14 +499,14 @@ void RtmpConnection::setPeerBandwidth(uint32_t size)
     uint8_t data[5];
     writeInt32BE((char*)data, size);
     data[4] = 2; //dynamic
-    sendRtmpMessage(data, 5, CHUNK_CONTROL_ID, RTMP_BANDWIDTH_SIZE, 0);
+    sendRtmpMessage(data, 5, CHUNK_CONTROL_ID, RTMP_BANDWIDTH_SIZE);
 }
 
 void RtmpConnection::sendAcknowledgement(uint32_t size)
 {
     uint8_t data[4];
     writeInt32BE((char*)data, size);
-    sendRtmpMessage(data, 4, CHUNK_CONTROL_ID, RTMP_ACK_SIZE, 0);
+    sendRtmpMessage(data, 4, CHUNK_CONTROL_ID, RTMP_ACK_SIZE);
 }
 
 void RtmpConnection::setChunkSize(uint32_t size)
@@ -496,10 +514,10 @@ void RtmpConnection::setChunkSize(uint32_t size)
     uint8_t data[4];
     writeInt32BE((char*)data, size);
     m_outChunkSize = size;
-    sendRtmpMessage(data, 4, CHUNK_CONTROL_ID, RTMP_CHUNK_SIZE, 0);
+    sendRtmpMessage(data, 4, CHUNK_CONTROL_ID, RTMP_CHUNK_SIZE);
 }
 
-bool RtmpConnection::sendRtmpMessage(uint8_t* data, uint32_t size, uint32_t csid, uint8_t msgType, uint32_t msgStreamId, uint32_t timestamp)
+bool RtmpConnection::sendRtmpMessage(uint8_t* payload, uint32_t size, uint32_t csid, uint8_t msgType, uint32_t msgStreamId, uint32_t timestamp)
 {
     if(this->isClosed())
     {

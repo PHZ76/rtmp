@@ -9,12 +9,14 @@ namespace xop
 class RtmpSession
 {
 public:
-
+    using Ptr = std::shared_ptr<RtmpSession>;
+    
+    RtmpSession();
+    ~RtmpSession();
+    
 private:    
 
 };
-
-typedef std::shared_ptr<RtmpSession> RtmpSessionPtr;
 
 }
 
