@@ -29,11 +29,6 @@ RtmpConnection::~RtmpConnection()
 
 bool RtmpConnection::onRead(BufferReader& buffer)
 {   
-    if (buffer.readableBytes() <= 0)
-    {        
-        return false; //close
-    }
-
     bool ret = true;
     if(m_connStatus >= HANDSHAKE_COMPLETE)
     {
@@ -139,7 +134,7 @@ bool RtmpConnection::handleChunk(BufferReader& buffer)
         
         uint8_t csid = flags & 0x3f; // chunk stream id
         if(csid == 0) // csid [64, 319]
-        {
+        {         
             if((bufSize-bytesUsed) < 2)
                 break;
             csid += buf[bytesUsed] + 64;
@@ -168,15 +163,21 @@ bool RtmpConnection::handleChunk(BufferReader& buffer)
         RtmpMessageHeader header;  
         memcpy(&header, buf+bytesUsed, headerLen);
         bytesUsed += headerLen;
-                
-        auto& rtmpMsg = m_rtmpMsgs[csid];                
+        
+        auto& rtmpMsg = m_rtmpMsgs[csid];         
+        
         if (headerLen >= 7) // type 1
         {    
-            uint32_t length = header.length[2] | (header.length[1] << 8) | (header.length[0] << 16);          
-            if(rtmpMsg.length != length)
+            uint32_t length = readUint24BE((char*)header.length);  
+            if(length > 60000)
             {
+                return false;
+            }    
+            
+            if(rtmpMsg.length != length)
+            {                
                 rtmpMsg.length = length;
-                rtmpMsg.data.reset(new char[rtmpMsg.length]);
+                rtmpMsg.data.reset(new char[rtmpMsg.length]);   
             }            
             rtmpMsg.index = 0;
             rtmpMsg.typeId = header.typeId;
@@ -189,7 +190,7 @@ bool RtmpConnection::handleChunk(BufferReader& buffer)
 		}       
         
         if (rtmpMsg.timestamp >= 0xffffff) // extended timestamp
-        {
+        {            
             if((bufSize-bytesUsed) < 4)
             {                    
                 break;
@@ -221,7 +222,7 @@ bool RtmpConnection::handleChunk(BufferReader& buffer)
         
         uint32_t chunkSize = rtmpMsg.length - rtmpMsg.index;
 		if (chunkSize > m_inChunkSize)
-			chunkSize = m_inChunkSize;     
+			chunkSize = m_inChunkSize;       
         if((bufSize-bytesUsed)  < chunkSize)
         {
             break;
@@ -235,24 +236,23 @@ bool RtmpConnection::handleChunk(BufferReader& buffer)
         memcpy(rtmpMsg.data.get()+rtmpMsg.index, buf+bytesUsed, chunkSize);
         bytesUsed += chunkSize;
         rtmpMsg.index += chunkSize;        
-        if(rtmpMsg.index == rtmpMsg.length)
-        {            
+        if(rtmpMsg.index > 0 && rtmpMsg.index == rtmpMsg.length)
+        {                              
             if(!handleMessage(rtmpMsg))
             {              
                 return false;
             } 
-            rtmpMsg.reset();
+            rtmpMsg.reset();            
         }        
         
-        buffer.retrieve(bytesUsed);    
+        buffer.retrieve(bytesUsed);  
     } while(1);
-
     
     return ret;
 }
 
 bool RtmpConnection::handleMessage(RtmpMessage& rtmpMsg)
-{
+{uint8_t *dd = (uint8_t*)rtmpMsg.data.get();
     bool ret = true;  
     switch(rtmpMsg.typeId)
     {        
@@ -271,8 +271,8 @@ bool RtmpConnection::handleMessage(RtmpMessage& rtmpMsg)
         case RTMP_FLEX_MESSAGE:
             throw std::runtime_error("unsupported amf3.");
             break;            
-        case RTMP_SET_CHUNK_SIZE:
-            m_inChunkSize = readInt32BE(rtmpMsg.data.get());
+        case RTMP_SET_CHUNK_SIZE:           
+            m_inChunkSize = readUint32BE(rtmpMsg.data.get());
             break;
         case RTMP_FLASH_VIDEO:
             throw std::runtime_error("unsupported flash video.");
@@ -377,13 +377,12 @@ bool RtmpConnection::handleNotify(RtmpMessage& rtmpMsg)
             sessionPtr->setMetaData(std::string((char*)m_amfEnc.data().get(), m_amfEnc.size()));
         }
     }
-        
+ 
     return true;
 }
 
 bool RtmpConnection::handleVideo(RtmpMessage& rtmpMsg)
 {
-    
     return true;
 }
 
@@ -511,7 +510,7 @@ bool RtmpConnection::handlePlay2()
 void RtmpConnection::setPeerBandwidth()
 {
     std::shared_ptr<char> data(new char[5]);
-    writeInt32BE(data.get(), kPeerBandwidth);
+    writeUint32BE(data.get(), kPeerBandwidth);
     data.get()[4] = 2;
     RtmpMessage rtmpMsg;
     rtmpMsg.typeId = RTMP_BANDWIDTH_SIZE;
@@ -523,7 +522,7 @@ void RtmpConnection::setPeerBandwidth()
 void RtmpConnection::sendAcknowledgement()
 {
     std::shared_ptr<char> data(new char[4]);
-    writeInt32BE(data.get(), kAcknowledgementSize);    
+    writeUint32BE(data.get(), kAcknowledgementSize);    
     
     RtmpMessage rtmpMsg;
     rtmpMsg.typeId = RTMP_ACK_SIZE;
@@ -535,7 +534,7 @@ void RtmpConnection::sendAcknowledgement()
 void RtmpConnection::setChunkSize()
 {
     std::shared_ptr<char> data(new char[4]);
-    writeInt32BE((char*)data.get(), m_outChunkSize);    
+    writeUint32BE((char*)data.get(), m_outChunkSize);    
     
     RtmpMessage rtmpMsg;
     rtmpMsg.typeId = RTMP_SET_CHUNK_SIZE;
@@ -573,7 +572,7 @@ void RtmpConnection::sendRtmpChunks(uint32_t csid, RtmpMessage& rtmpMsg)
     bufferOffset += this->createChunkMessageHeader(0, rtmpMsg, buffer + bufferOffset);
     if(rtmpMsg.clock >= 0xffffff)
     {
-        writeInt32BE((char*)buffer + bufferOffset, rtmpMsg.clock);
+        writeUint32BE((char*)buffer + bufferOffset, rtmpMsg.clock);
         bufferOffset += 4;
     }
 
@@ -589,7 +588,7 @@ void RtmpConnection::sendRtmpChunks(uint32_t csid, RtmpMessage& rtmpMsg)
             bufferOffset += this->createChunkBasicHeader(3, csid, buffer + bufferOffset);
             if(rtmpMsg.clock >= 0xffffff)
             {
-                writeInt32BE(buffer + bufferOffset, rtmpMsg.clock);
+                writeUint32BE(buffer + bufferOffset, rtmpMsg.clock);
                 bufferOffset += 4;
             }
         }
@@ -634,25 +633,25 @@ int RtmpConnection::createChunkMessageHeader(uint8_t fmt, RtmpMessage& rtmpMsg, 
     {
         if(rtmpMsg.clock < 0xffffff)
         {
-           writeInt24BE((char*)buf, rtmpMsg.clock);    
+           writeUint24BE((char*)buf, rtmpMsg.clock);    
         }
         else
         {
-            writeInt24BE((char*)buf, 0xffffff);    
+            writeUint24BE((char*)buf, 0xffffff);    
         }
         len += 3;
     }
 
     if (fmt <= 1) 
     {
-        writeInt24BE((char*)buf + len, rtmpMsg.length);
+        writeUint24BE((char*)buf + len, rtmpMsg.length);
         len += 3;
         buf[len++] = rtmpMsg.typeId;
     }
 
     if (fmt == 0) 
     {
-        writeInt32LE((char*)buf + len, rtmpMsg.streamId);    
+        writeUint32LE((char*)buf + len, rtmpMsg.streamId);    
         len += 4;
     }
     

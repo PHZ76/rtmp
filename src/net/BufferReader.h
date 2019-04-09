@@ -13,12 +13,12 @@
 namespace xop
 {
     
-int32_t readInt32BE(char* p);
-int32_t readInt32LE(char* p);
-int32_t readInt24BE(char* p);
-int32_t readInt24LE(char* p);
-int16_t readInt16BE(char* p);
-int16_t readInt16LE(char* p);
+uint32_t readUint32BE(char* data);
+uint32_t readUint32LE(char* data);
+uint32_t readUint24BE(char* data);
+uint32_t readUint24LE(char* data);
+uint16_t readUint16BE(char* data);
+uint16_t readUint16LE(char* data);
     
 class BufferReader
 {

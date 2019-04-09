@@ -38,10 +38,8 @@ struct RtmpMessage
     std::shared_ptr<char> data = nullptr;
     
     void reset()
-    {
-        length = 0;
-        index = 0;
-        data.reset();
+    {        
+        index = 0;       
     }
 };
 

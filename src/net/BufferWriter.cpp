@@ -7,7 +7,7 @@
 
 using namespace xop;
 
-void xop::writeInt32BE(char* p, int32_t value)
+void xop::writeUint32BE(char* p, uint32_t value)
 {
     p[0] = value >> 24;
 	p[1] = value >> 16;
@@ -15,7 +15,7 @@ void xop::writeInt32BE(char* p, int32_t value)
 	p[3] = value & 0xff;
 }
 
-void xop::writeInt32LE(char* p, int32_t value)
+void xop::writeUint32LE(char* p, uint32_t value)
 {
     p[0] = value & 0xff;
 	p[1] = value >> 8;
@@ -23,27 +23,27 @@ void xop::writeInt32LE(char* p, int32_t value)
 	p[3] = value >> 24;
 }
 
-void xop::writeInt24BE(char* p, int32_t value)
+void xop::writeUint24BE(char* p, uint32_t value)
 {
 	p[0] = value >> 16;
 	p[1] = value >> 8;
 	p[2] = value & 0xff;
 }
 
-void xop::writeInt24LE(char* p, int32_t value)
+void xop::writeUint24LE(char* p, uint32_t value)
 {
     p[0] = value & 0xff;
 	p[1] = value >> 8;
 	p[2] = value >> 16;
 }
 
-void xop::writeInt16BE(char* p, int16_t value)
+void xop::writeUint16BE(char* p, uint16_t value)
 {
     p[0] = value >> 8;
 	p[1] = value & 0xff;
 }
 
-void xop::writeInt16LE(char* p, int16_t value)
+void xop::writeUint16LE(char* p, uint16_t value)
 {
     p[0] = value & 0xff;
 	p[1] = value >> 8;

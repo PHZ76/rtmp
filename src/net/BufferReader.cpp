@@ -7,39 +7,45 @@
  
 using namespace xop;
 
-int32_t xop::readInt32BE(char* p)
+uint32_t xop::readUint32BE(char* data)
 {
-    int32_t value = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
+    uint8_t* p = (uint8_t*)data;
+    uint32_t value = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
     return value;
 }
 
-int32_t xop::readInt32LE(char* p)
+uint32_t xop::readUint32LE(char* data)
 {
-    int32_t value = (p[3] << 24) | (p[2] << 16) | (p[1] << 8) | p[0];
+    uint8_t* p = (uint8_t*)data;
+    uint32_t value = (p[3] << 24) | (p[2] << 16) | (p[1] << 8) | p[0];
     return value;
 }
 
-int32_t xop::readInt24BE(char* p)
+uint32_t xop::readUint24BE(char* data)
 {
-    int32_t value = (p[0] << 16) | (p[1] << 8) | p[2];
+    uint8_t* p = (uint8_t*)data;
+    uint32_t value = (p[0] << 16) | (p[1] << 8) | p[2];
     return value;
 }
 
-int32_t xop::readInt24LE(char* p)
+uint32_t xop::readUint24LE(char* data)
 {
-    int32_t value = (p[2] << 16) | (p[1] << 8) | p[0];
+    uint8_t* p = (uint8_t*)data;
+    uint32_t value = (p[2] << 16) | (p[1] << 8) | p[0];
     return value;
 }
 
-int16_t xop::readInt16BE(char* p)
+uint16_t xop::readUint16BE(char* data)
 {
-    int16_t value = (p[0] << 8) | p[1];
+    uint8_t* p = (uint8_t*)data;
+    uint16_t value = (p[0] << 8) | p[1];
     return value; 
 }
 
-int16_t xop::readInt16LE(char* p)
+uint16_t xop::readUint16LE(char* data)
 {
-    int16_t value = (p[1] << 8) | p[0];
+    uint8_t* p = (uint8_t*)data;
+    uint16_t value = (p[1] << 8) | p[0];
     return value; 
 }
 

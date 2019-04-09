@@ -12,12 +12,12 @@
 namespace xop
 {
 
-void writeInt32BE(char* p, int32_t value);
-void writeInt32LE(char* p, int32_t value);
-void writeInt24BE(char* p, int32_t value);
-void writeInt24LE(char* p, int32_t value);
-void writeInt16BE(char* p, int16_t value);
-void writeInt16LE(char* p, int16_t value);
+void writeUint32BE(char* p, uint32_t value);
+void writeUint32LE(char* p, uint32_t value);
+void writeUint24BE(char* p, uint32_t value);
+void writeUint24LE(char* p, uint32_t value);
+void writeUint16BE(char* p, uint16_t value);
+void writeUint16LE(char* p, uint16_t value);
 	
 class BufferWriter
 {
