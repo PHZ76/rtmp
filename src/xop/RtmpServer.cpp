@@ -50,7 +50,7 @@ RtmpSession::Ptr RtmpServer::getSession(std::string streamPath)
     std::lock_guard<std::mutex> lock(m_mutex);
     if(m_rtmpSessions.find(streamPath) == m_rtmpSessions.end())
     {
-        return nullptr;
+        m_rtmpSessions[streamPath] = std::make_shared<RtmpSession>();        
     }
     
     return m_rtmpSessions[streamPath];

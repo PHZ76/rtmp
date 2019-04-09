@@ -70,8 +70,8 @@ int AmfDecoder::decodeNumber(const char *data, int size, double& amf_number)
 	if (size < 8)
 		return 0;
 
-	uint8_t *ci = (unsigned char *)data;
-	uint8_t *co = (unsigned char *)&amf_number;
+	char *ci = (char*)data;
+	char *co = (char*)&amf_number;
 	co[0] = ci[7];
 	co[1] = ci[6];
 	co[2] = ci[5];
@@ -164,7 +164,7 @@ uint32_t AmfDecoder::decodeInt32(const char *data, int size)
 }
 
 AmfEncoder::AmfEncoder(uint32_t size)
-    : m_data(new uint8_t[size])
+    : m_data(new char[size])
     , m_size(size)
 {
     
@@ -192,7 +192,7 @@ void AmfEncoder::encodeInt16(int16_t value)
         this->realloc(m_size + 1024);
     }
 
-    writeInt16BE((char*)m_data.get()+m_index, value);
+    writeInt16BE(m_data.get()+m_index, value);
     m_index += 2; 
 }
 
@@ -203,7 +203,7 @@ void AmfEncoder::encodeInt24(int32_t value)
         this->realloc(m_size + 1024);
     }
 
-    writeInt24BE((char*)m_data.get()+m_index, value);
+    writeInt24BE(m_data.get()+m_index, value);
     m_index += 3; 
 }
 
@@ -215,7 +215,7 @@ void AmfEncoder::encodeInt32(int32_t value)
         this->realloc(m_size + 1024);
     }
  
-    writeInt32BE((char*)m_data.get()+m_index, value);
+    writeInt32BE(m_data.get()+m_index, value);
     m_index += 4; 
 }
 
@@ -256,9 +256,8 @@ void AmfEncoder::encodeNumber(double value)
 
     m_data.get()[m_index++] = AMF0_NUMBER;	
 
-    uint8_t *ci, *co;
-    ci = (uint8_t *)&value;
-    co = (uint8_t *)m_data.get();
+    char* ci = (char*)&value;
+    char* co = m_data.get();
     co[m_index++] = ci[7];
     co[m_index++] = ci[6];
     co[m_index++] = ci[5];
@@ -327,7 +326,7 @@ void AmfEncoder::realloc(uint32_t size)
         return ;
     }
     
-    std::shared_ptr<uint8_t> data(new uint8_t[size]);
+    std::shared_ptr<char> data(new char[size]);
     memcpy(data.get(), m_data.get(), m_index);
     m_size = size;
     m_data = data;

@@ -143,7 +143,7 @@ public:
          m_index = 0;
      }
      
-     std::shared_ptr<uint8_t> data()
+     std::shared_ptr<char> data()
      {
          return m_data;
      }
@@ -166,7 +166,7 @@ private:
     void encodeInt32(int32_t value); 
     void realloc(uint32_t size);
     
-    std::shared_ptr<uint8_t> m_data;    
+    std::shared_ptr<char> m_data;    
     uint32_t m_size  = 0;
     uint32_t m_index = 0;
 };

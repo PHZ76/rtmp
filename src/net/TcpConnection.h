@@ -34,7 +34,7 @@ public:
     void send(std::shared_ptr<char> data, uint32_t size);
     void send(const char *data, uint32_t size);
     void close();
-
+    
     bool isClosed() const 
     { return _isClosed; }
 

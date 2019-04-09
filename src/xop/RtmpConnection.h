@@ -11,28 +11,35 @@ namespace xop
 
 class RtmpServer;
 
+struct ChunkBasicHeader
+{
+    
+};
+
 // chunk header: basic_header + rtmp_message_header 
 struct RtmpMessageHeader
 {
     uint8_t timestamp[3];
-    uint8_t msgLen[3];
-    uint8_t msgType;
-    uint8_t msgStreamId[4]; //小端格式
+    uint8_t length[3];
+    uint8_t typeId;
+    uint8_t streamId[4]; //小端格式
 };
 
 struct RtmpMessage 
 {
-    uint32_t csid = 0;
-    uint32_t len = 0;
-    uint64_t timestamp = 0;
-    uint8_t  msgType = 0;
-    uint32_t msgStreamId = 0;
+    uint32_t timestamp = 0;
+    uint32_t length = 0;
+    uint8_t  typeId = 0;
+    uint32_t streamId = 0;
+    uint32_t extTimestamp = 0;   
+   
+    uint64_t clock = 0;    
     uint32_t index = 0;
-    std::shared_ptr<uint8_t> data;
+    std::shared_ptr<char> data = nullptr;
     
     void reset()
     {
-        len = 0;
+        length = 0;
         index = 0;
         data.reset();
     }
@@ -46,23 +53,23 @@ public:
         HANDSHAKE_C0C1, 
         HANDSHAKE_C2,
         HANDSHAKE_COMPLETE,
-        START_PULL,
+        START_PLAY,
         START_PUBLISH
     };
     
     enum RtmpMessagType
     {
-        RTMP_CHUNK_SIZE     = 0x1 , //设置块大小
-        RTMP_AOBRT_MESSAGE  = 0X2 , //终止消息
-        RTMP_ACK            = 0x3 , //确认
-        RTMP_ACK_SIZE       = 0x5 , //窗口大小确认
-        RTMP_BANDWIDTH_SIZE = 0x6 , //设置对端带宽
-        RTMP_AUDIO	        = 0x08,
-        RTMP_VIDEO          = 0x09,
-        RTMP_FLEX_MESSAGE   = 0x11, //amf3
-        RTMP_NOTIFY         = 0x12, //
-        RTMP_INVOKE         = 0x14, //amf0
-        RTMP_FLASH_VIDEO    = 0x16,
+        RTMP_SET_CHUNK_SIZE     = 0x1 , //设置块大小
+        RTMP_AOBRT_MESSAGE      = 0X2 , //终止消息
+        RTMP_ACK                = 0x3 , //确认
+        RTMP_ACK_SIZE           = 0x5 , //窗口大小确认
+        RTMP_BANDWIDTH_SIZE     = 0x6 , //设置对端带宽
+        RTMP_AUDIO	            = 0x08,
+        RTMP_VIDEO              = 0x09,
+        RTMP_FLEX_MESSAGE       = 0x11, //amf3
+        RTMP_NOTIFY             = 0x12, //
+        RTMP_INVOKE             = 0x14, //amf0
+        RTMP_FLASH_VIDEO        = 0x16,
     };
     
     enum ChunkSreamId
@@ -85,30 +92,38 @@ public:
     std::string getApp() const
     { return m_app; }
     
+    bool isPlayer() const 
+    { return m_connStatus==START_PLAY; }
+    
+    bool isPublisher() const 
+    { return m_connStatus==START_PUBLISH; }
+    
 private:
     bool onRead(BufferReader& buffer);
     void onClose();
     
     bool handleHandshake(BufferReader& buffer);
     bool handleChunk(BufferReader& buffer);
-    bool handleMessage(RtmpMessage& rtmpMessage);
-    bool handleInvoke(RtmpMessage& rtmpMessage);
-    bool handleNotify(RtmpMessage& rtmpMessage);
-    bool handleVideo(RtmpMessage& rtmpMessage);
-    bool handleAudio(RtmpMessage& rtmpMessage);
+    bool handleMessage(RtmpMessage& rtmpMsg);
+    bool handleInvoke(RtmpMessage& rtmpMsg);
+    bool handleNotify(RtmpMessage& rtmpMsg);
+    bool handleVideo(RtmpMessage& rtmpMsg);
+    bool handleAudio(RtmpMessage& rtmpMsg);
     
     bool handleConnect();
-    bool handleFCPublish();
     bool handleCreateStream();
     bool handlePublish();
     bool handlePlay();
     bool handlePlay2();
     
-    void setPeerBandwidth(uint32_t size);
-    void sendAcknowledgement(uint32_t size);
-    void setChunkSize(uint32_t size);
+    void setPeerBandwidth();
+    void sendAcknowledgement();
+    void setChunkSize();
     
-    bool sendRtmpMessage(uint8_t* payload, uint32_t size, uint32_t csid, uint8_t msgType, uint32_t msgStreamId=0, uint32_t timestamp=0);  
+    bool sendInvokeMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payloadSize);
+    void sendRtmpChunks(uint32_t csid, RtmpMessage& rtmpMsg);
+    int createChunkBasicHeader(uint8_t fmt, uint32_t csid, char* buf);
+    int createChunkMessageHeader(uint8_t fmt, RtmpMessage& rtmpMsg, char* buf);   
     
     RtmpServer *m_rtmpServer;
     TaskScheduler *m_taskScheduler;
@@ -119,7 +134,7 @@ private:
     const int kChunkMessageLen[4] = {11, 7, 3, 0};
     uint32_t m_inChunkSize = 128;
     uint32_t m_outChunkSize = 128;
-    uint32_t m_streamId = 1;
+    uint32_t m_streamId = 0;
     
     AmfDecoder m_amfDec;
     AmfEncoder m_amfEnc;
@@ -127,11 +142,12 @@ private:
     std::string m_streamName;
     std::string m_streamPath;
     AmfObjects m_metaData;
-    std::map<int, RtmpMessage> m_rtmpMessages;  
+    std::map<int, RtmpMessage> m_rtmpMsgs;  
     
     const uint32_t kPeerBandwidth       = 5000000;
     const uint32_t kAcknowledgementSize = 5000000;
     const uint32_t kMaxChunkSize        = 60000;
+    const uint32_t kStreamId            = 1;
 };
       
 }
