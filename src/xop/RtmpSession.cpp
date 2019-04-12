@@ -12,50 +12,39 @@ RtmpSession::~RtmpSession()
     
 }
 
-std::string RtmpSession::getMetaData()
-{
-    std::lock_guard<std::mutex> lock(m_mutex);    
-    return m_metaData;
-}
-
-void RtmpSession::setMetaData(std::string metaData)
+void RtmpSession::sendMetaData(std::shared_ptr<char> data, uint32_t size)
 { 
     std::lock_guard<std::mutex> lock(m_mutex);    
-    m_metaData = std::move(metaData); 
     
-    for (auto iter = _players.begin(); iter != _players.end();)
+    for (auto iter = m_players.begin(); iter != m_players.end();)
     {
         auto conn = iter->second.lock(); 
         if (conn == nullptr) // conn disconect
         {
-            _players.erase(iter++);
+            m_players.erase(iter++);
         }
         else
-        {			
-            if(conn->isPlayer())
+        {	
+            RtmpConnection* player = (RtmpConnection*)conn.get();
+            if(player->isPlayer())
             {
-                conn->send(m_metaData.c_str(), m_metaData.size());
+                player->sendMetaData(data, size);
                 iter++;
             }
         }
     }
-}
+} 
 
-void RtmpSession::addClient(std::shared_ptr<RtmpConnection>& conn)
+void RtmpSession::addClient(std::shared_ptr<TcpConnection> conn)
 {
     std::lock_guard<std::mutex> lock(m_mutex);   
-    _players[conn->fd()] = conn;
-    
-    // send meta data
-    conn->send(m_metaData.c_str(), m_metaData.size());
-    
-    //send gop
+    m_players[conn->fd()] = conn;
 }
 
-void RtmpSession::removeClient(std::shared_ptr<RtmpConnection>& conn)
+void RtmpSession::removeClient(std::shared_ptr<TcpConnection> conn)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
-    _players.erase(conn->fd());
+    m_players.erase(conn->fd());
 }
 
 

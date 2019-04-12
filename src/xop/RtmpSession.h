@@ -14,17 +14,23 @@ public:
     
     RtmpSession();
     ~RtmpSession();
+
+    void setMetaData(AmfObjects metaData)
+    { m_metaData = metaData; }
     
-    void setMetaData(std::string metaData); 
-    std::string getMetaData();  
+    AmfObjects getMetaData() const 
+    { return m_metaData; }   
     
-    void addClient(std::shared_ptr<RtmpConnection>& conn);
-    void removeClient(std::shared_ptr<RtmpConnection>& conn);
+    void addClient(std::shared_ptr<TcpConnection> conn);
+    void removeClient(std::shared_ptr<TcpConnection> conn);
     
-private:    
-    std::string m_metaData;
+    void sendMetaData(std::shared_ptr<char> data, uint32_t size);
+    
+private:        
     std::mutex m_mutex;
-    std::unordered_map<SOCKET, std::weak_ptr<RtmpConnection>> _players; 
+    AmfObjects m_metaData;
+    std::unordered_map<SOCKET, std::weak_ptr<TcpConnection>> m_players; 
+    std::weak_ptr<TcpConnection> m_publisher;
 };
 
 }

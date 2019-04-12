@@ -260,7 +260,7 @@ bool RtmpConnection::handleMessage(RtmpMessage& rtmpMsg)
             ret = handleVideo(rtmpMsg);
             break;
         case RTMP_AUDIO:
-            ret = handleVideo(rtmpMsg);
+            ret = handleAudio(rtmpMsg);
             break;
         case RTMP_INVOKE:
             ret = handleInvoke(rtmpMsg);
@@ -276,6 +276,10 @@ bool RtmpConnection::handleMessage(RtmpMessage& rtmpMsg)
             break;
         case RTMP_FLASH_VIDEO:
             throw std::runtime_error("unsupported flash video.");
+            break;       
+        case RTMP_ACK_SIZE:
+            break;
+        case RTMP_USER_EVENT:
             break;
         default:
             printf("unkonw message type : %d\n", rtmpMsg.typeId);
@@ -313,14 +317,15 @@ bool RtmpConnection::handleInvoke(RtmpMessage& rtmpMsg)
     else if(rtmpMsg.streamId == m_streamId)
     {
         bytesUsed += m_amfDec.decode((const char *)rtmpMsg.data.get()+bytesUsed, rtmpMsg.length-bytesUsed, 1);
-        m_streamName = m_amfDec.getString();
-        m_streamPath = "/" + m_app + "/" + m_streamName;
-        
+       
         if(rtmpMsg.length > bytesUsed)
         {
             bytesUsed += m_amfDec.decode((const char *)rtmpMsg.data.get()+bytesUsed, rtmpMsg.length-bytesUsed);                      
         }
        
+        m_streamName = m_amfDec.getString();
+        m_streamPath = "/" + m_app + "/" + m_streamName;
+        
         if(method == "publish")
         {            
             ret = handlePublish();
@@ -371,10 +376,14 @@ bool RtmpConnection::handleNotify(RtmpMessage& rtmpMsg)
             m_metaData = m_amfDec.getObjects();
             
             auto sessionPtr = m_rtmpServer->getSession(m_streamPath); 
-            m_amfEnc.reset();
-            m_amfEnc.encodeString("onMetaData", 10);
-            m_amfEnc.encodeECMA(m_metaData);
-            sessionPtr->setMetaData(std::string((char*)m_amfEnc.data().get(), m_amfEnc.size()));
+            if(sessionPtr)
+            {   
+                m_amfEnc.reset();
+                m_amfEnc.encodeString("onMetaData", 10);
+                m_amfEnc.encodeECMA(m_metaData);
+                sessionPtr->setMetaData(m_metaData);
+                sessionPtr->sendMetaData(m_amfEnc.data(), m_amfEnc.size());                
+            }
         }
     }
  
@@ -492,19 +501,99 @@ bool RtmpConnection::handlePublish()
         m_connStatus = START_PUBLISH;
     }
     
+    auto sessionPtr = m_rtmpServer->getSession(m_streamPath); 
+    if(sessionPtr)
+    {   
+        sessionPtr->addClient(shared_from_this());             
+    }
+            
     return true;
 }
 
 bool RtmpConnection::handlePlay()
 {
     printf("[Play] stream path: %s\n", m_streamPath.c_str());
+    
+    AmfObjects objects; 
+    m_amfEnc.reset(); 
+    m_amfEnc.encodeString("onStatus", 8);
+    m_amfEnc.encodeNumber(0);
+    m_amfEnc.encodeObjects(objects);
+    objects["level"] = AmfObject(std::string("status"));
+    objects["code"] = AmfObject(std::string("NetStream.Play.Reset"));
+    objects["description"] = AmfObject(std::string("Resetting and playing stream."));
+    m_amfEnc.encodeObjects(objects);   
+    if(!sendInvokeMessage(CHUNK_STREAM_ID, m_amfEnc.data(), m_amfEnc.size()))
+    {
+        return false;
+    }
+    
+    objects.clear(); 
+    m_amfEnc.reset(); 
+    m_amfEnc.encodeString("onStatus", 8);
+    m_amfEnc.encodeNumber(0);    
+    m_amfEnc.encodeObjects(objects);
+    objects["level"] = AmfObject(std::string("status"));
+    objects["code"] = AmfObject(std::string("NetStream.Play.Start"));
+    objects["description"] = AmfObject(std::string("Started playing."));   
+    m_amfEnc.encodeObjects(objects);
+    if(!sendInvokeMessage(CHUNK_STREAM_ID, m_amfEnc.data(), m_amfEnc.size()))
+    {
+        return false;
+    }
+    
+    m_amfEnc.reset(); 
+    m_amfEnc.encodeString("|RtmpSampleAccess", 17);
+    m_amfEnc.encodeBoolean(true);
+    m_amfEnc.encodeBoolean(true);
+    if(!sendNotifyMessage(CHUNK_STREAM_ID, m_amfEnc.data(), m_amfEnc.size()))
+    {
+        return false;
+    }
+            
+    m_connStatus = START_PLAY;   
+    
+    auto sessionPtr = m_rtmpServer->getSession(m_streamPath); 
+    if(sessionPtr)
+    {   
+        sessionPtr->addClient(shared_from_this());
+        m_metaData = sessionPtr->getMetaData();
+        if(m_metaData.size() > 0)
+        {
+            this->sendMetaData(m_metaData); 
+        }                           
+    }  
+    
     return true;
 }
 
 bool RtmpConnection::handlePlay2()
 {
-    printf("[Play] stream path: %s\n", m_streamPath.c_str());
+    printf("[Play2] stream path: %s\n", m_streamPath.c_str());
+    return false;
+}
+
+bool RtmpConnection::sendMetaData(AmfObjects& metaData)
+{
+    if(this->isClosed())
+    {
+        return false;
+    }
+    
+    m_amfEnc.reset(); 
+    m_amfEnc.encodeString("onMetaData", 10);
+    m_amfEnc.encodeECMA(metaData);
+    if(!sendNotifyMessage(CHUNK_STREAM_ID, m_amfEnc.data(), m_amfEnc.size()))
+    {
+        return false;
+    }
+    
     return true;
+}
+
+bool RtmpConnection::sendMetaData(std::shared_ptr<char> data, uint32_t size)
+{
+    return sendNotifyMessage(CHUNK_STREAM_ID, data, size);
 }
 
 void RtmpConnection::setPeerBandwidth()
@@ -560,9 +649,25 @@ bool RtmpConnection::sendInvokeMessage(uint32_t csid, std::shared_ptr<char> payl
     return true;
 }
 
-void RtmpConnection::sendRtmpChunks(uint32_t csid, RtmpMessage& rtmpMsg)
+bool RtmpConnection::sendNotifyMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payloadSize)
 {
+    if(this->isClosed())
+    {
+        return false;
+    }
     
+    RtmpMessage rtmpMsg;
+    rtmpMsg.typeId = RTMP_NOTIFY;
+    rtmpMsg.timestamp = 0;
+    rtmpMsg.streamId = m_streamId;
+    rtmpMsg.data = payload;
+    rtmpMsg.length = payloadSize; 
+    sendRtmpChunks(csid, rtmpMsg);  
+    return true;
+}
+
+void RtmpConnection::sendRtmpChunks(uint32_t csid, RtmpMessage& rtmpMsg)
+{    
     uint32_t bufferOffset = 0, payloadOffset = 0;
     uint32_t capacity = rtmpMsg.length + 1024; 
     std::shared_ptr<char> bufferPtr(new char[capacity]);

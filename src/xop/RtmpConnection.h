@@ -60,6 +60,7 @@ public:
         RTMP_SET_CHUNK_SIZE     = 0x1 , //设置块大小
         RTMP_AOBRT_MESSAGE      = 0X2 , //终止消息
         RTMP_ACK                = 0x3 , //确认
+        RTMP_USER_EVENT         = 0x4 , //用户控制消息
         RTMP_ACK_SIZE           = 0x5 , //窗口大小确认
         RTMP_BANDWIDTH_SIZE     = 0x6 , //设置对端带宽
         RTMP_AUDIO	            = 0x08,
@@ -90,13 +91,18 @@ public:
     std::string getApp() const
     { return m_app; }
     
+    AmfObjects getMetaData() const 
+    { return m_metaData; }
+    
     bool isPlayer() const 
     { return m_connStatus==START_PLAY; }
     
     bool isPublisher() const 
-    { return m_connStatus==START_PUBLISH; }
+    { return m_connStatus==START_PUBLISH; }        
     
 private:
+    friend class RtmpSession;
+    
     bool onRead(BufferReader& buffer);
     void onClose();
     
@@ -113,12 +119,15 @@ private:
     bool handlePublish();
     bool handlePlay();
     bool handlePlay2();
+    bool sendMetaData(AmfObjects& metaData);
+    bool sendMetaData(std::shared_ptr<char> data, uint32_t size);
     
     void setPeerBandwidth();
     void sendAcknowledgement();
     void setChunkSize();
     
     bool sendInvokeMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payloadSize);
+    bool sendNotifyMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payloadSize);
     void sendRtmpChunks(uint32_t csid, RtmpMessage& rtmpMsg);
     int createChunkBasicHeader(uint8_t fmt, uint32_t csid, char* buf);
     int createChunkMessageHeader(uint8_t fmt, RtmpMessage& rtmpMsg, char* buf);   
