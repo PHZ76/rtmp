@@ -20,17 +20,18 @@ public:
     
     AmfObjects getMetaData() const 
     { return m_metaData; }   
-    
+        
     void addClient(std::shared_ptr<TcpConnection> conn);
     void removeClient(std::shared_ptr<TcpConnection> conn);
-    
-    void sendMetaData(std::shared_ptr<char> data, uint32_t size);
+    int  getClients();
+        
+    void sendMetaData(AmfObjects& metaData);
+    void sendMediaData(uint8_t type, uint32_t ts, std::shared_ptr<char> data, uint32_t size);
     
 private:        
     std::mutex m_mutex;
     AmfObjects m_metaData;
-    std::unordered_map<SOCKET, std::weak_ptr<TcpConnection>> m_players; 
-    std::weak_ptr<TcpConnection> m_publisher;
+    std::unordered_map<SOCKET, std::weak_ptr<TcpConnection>> m_clients; 
 };
 
 }

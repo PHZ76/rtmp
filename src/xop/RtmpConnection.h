@@ -119,15 +119,16 @@ private:
     bool handlePublish();
     bool handlePlay();
     bool handlePlay2();
-    bool sendMetaData(AmfObjects& metaData);
-    bool sendMetaData(std::shared_ptr<char> data, uint32_t size);
+    bool handDeleteStream();
     
     void setPeerBandwidth();
     void sendAcknowledgement();
     void setChunkSize();
     
     bool sendInvokeMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payloadSize);
-    bool sendNotifyMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payloadSize);
+    bool sendNotifyMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payloadSize);   
+    bool sendMetaData(AmfObjects& metaData);
+    bool sendMediaData(uint8_t type, uint32_t ts, std::shared_ptr<char> payload, uint32_t payloadSize);
     void sendRtmpChunks(uint32_t csid, RtmpMessage& rtmpMsg);
     int createChunkBasicHeader(uint8_t fmt, uint32_t csid, char* buf);
     int createChunkMessageHeader(uint8_t fmt, RtmpMessage& rtmpMsg, char* buf);   
@@ -153,7 +154,7 @@ private:
     
     const uint32_t kPeerBandwidth       = 5000000;
     const uint32_t kAcknowledgementSize = 5000000;
-    const uint32_t kMaxChunkSize        = 60000;
+    const uint32_t kMaxChunkSize        = 128;
     const uint32_t kStreamId            = 1;
 };
       

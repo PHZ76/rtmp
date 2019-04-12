@@ -49,7 +49,7 @@ bool RtmpConnection::onRead(BufferReader& buffer)
 
 void RtmpConnection::onClose()
 {
-    
+    this->handDeleteStream();
 }
 
 bool RtmpConnection::handleHandshake(BufferReader& buffer)
@@ -182,14 +182,15 @@ bool RtmpConnection::handleChunk(BufferReader& buffer)
             rtmpMsg.index = 0;
             rtmpMsg.typeId = header.typeId;
 		}
-             
+                          
         if (headerLen >= 3) // type 2
         {
-            rtmpMsg.timestamp = header.timestamp[2] | ((uint32_t) header.timestamp[1] << 8) | \
-                                ((uint32_t) header.timestamp[0] << 16);     
+            rtmpMsg.timestamp += header.timestamp[2] | ((uint32_t) header.timestamp[1] << 8) | \
+                                ((uint32_t) header.timestamp[0] << 16); 
+            rtmpMsg.clock = rtmpMsg.timestamp;
 		}       
         
-        if (rtmpMsg.timestamp >= 0xffffff) // extended timestamp
+    /*     if (rtmpMsg.timestamp >= 0xffffff) // extended timestamp
         {            
             if((bufSize-bytesUsed) < 4)
             {                    
@@ -212,8 +213,8 @@ bool RtmpConnection::handleChunk(BufferReader& buffer)
         else
         {
             rtmpMsg.clock += rtmpMsg.extTimestamp; //delta
-        }            
-
+        }             */
+   
         if (headerLen >= 11) // type 0
         {
             rtmpMsg.streamId = header.streamId[0] | ((uint32_t) header.streamId[1] << 8) |  \
@@ -276,7 +277,9 @@ bool RtmpConnection::handleMessage(RtmpMessage& rtmpMsg)
             break;
         case RTMP_FLASH_VIDEO:
             throw std::runtime_error("unsupported flash video.");
-            break;       
+            break;    
+        case RTMP_ACK:
+            break;            
         case RTMP_ACK_SIZE:
             break;
         case RTMP_USER_EVENT:
@@ -316,16 +319,15 @@ bool RtmpConnection::handleInvoke(RtmpMessage& rtmpMsg)
     }
     else if(rtmpMsg.streamId == m_streamId)
     {
-        bytesUsed += m_amfDec.decode((const char *)rtmpMsg.data.get()+bytesUsed, rtmpMsg.length-bytesUsed, 1);
-       
+        bytesUsed += m_amfDec.decode((const char *)rtmpMsg.data.get()+bytesUsed, rtmpMsg.length-bytesUsed, 3);
+        m_streamName = m_amfDec.getString();
+        m_streamPath = "/" + m_app + "/" + m_streamName;
+        
         if(rtmpMsg.length > bytesUsed)
         {
             bytesUsed += m_amfDec.decode((const char *)rtmpMsg.data.get()+bytesUsed, rtmpMsg.length-bytesUsed);                      
         }
-       
-        m_streamName = m_amfDec.getString();
-        m_streamPath = "/" + m_app + "/" + m_streamName;
-        
+              
         if(method == "publish")
         {            
             ret = handlePublish();
@@ -340,7 +342,7 @@ bool RtmpConnection::handleInvoke(RtmpMessage& rtmpMsg)
         }
         else if(method == "deleteStream")
         {
-            printf("handle deleteStream \n");
+            ret = handDeleteStream();
         }
     }
       
@@ -348,7 +350,7 @@ bool RtmpConnection::handleInvoke(RtmpMessage& rtmpMsg)
 }
 
 bool RtmpConnection::handleNotify(RtmpMessage& rtmpMsg)
-{
+{   
     if(m_streamId != rtmpMsg.streamId)
     {
         return false;
@@ -378,11 +380,7 @@ bool RtmpConnection::handleNotify(RtmpMessage& rtmpMsg)
             auto sessionPtr = m_rtmpServer->getSession(m_streamPath); 
             if(sessionPtr)
             {   
-                m_amfEnc.reset();
-                m_amfEnc.encodeString("onMetaData", 10);
-                m_amfEnc.encodeECMA(m_metaData);
-                sessionPtr->setMetaData(m_metaData);
-                sessionPtr->sendMetaData(m_amfEnc.data(), m_amfEnc.size());                
+                sessionPtr->sendMetaData(m_metaData);                
             }
         }
     }
@@ -391,12 +389,29 @@ bool RtmpConnection::handleNotify(RtmpMessage& rtmpMsg)
 }
 
 bool RtmpConnection::handleVideo(RtmpMessage& rtmpMsg)
-{
+{  
+    if(m_streamPath != "")
+    {
+        auto sessionPtr = m_rtmpServer->getSession(m_streamPath); 
+        if(sessionPtr)
+        {   
+            sessionPtr->sendMediaData(RTMP_VIDEO, rtmpMsg.clock, rtmpMsg.data, rtmpMsg.length);                  
+        }  
+    } 
+    
     return true;
 }
 
 bool RtmpConnection::handleAudio(RtmpMessage& rtmpMsg)
 {
+    if(m_streamPath != "")
+    {
+        auto sessionPtr = m_rtmpServer->getSession(m_streamPath); 
+        if(sessionPtr)
+        {   
+            sessionPtr->sendMediaData(RTMP_AUDIO, rtmpMsg.clock, rtmpMsg.data, rtmpMsg.length);               
+        }  
+    }
     return true;
 }
 
@@ -505,8 +520,7 @@ bool RtmpConnection::handlePublish()
     if(sessionPtr)
     {   
         sessionPtr->addClient(shared_from_this());             
-    }
-            
+    }        
     return true;
 }
 
@@ -550,9 +564,7 @@ bool RtmpConnection::handlePlay()
     {
         return false;
     }
-            
-    m_connStatus = START_PLAY;   
-    
+             
     auto sessionPtr = m_rtmpServer->getSession(m_streamPath); 
     if(sessionPtr)
     {   
@@ -564,6 +576,7 @@ bool RtmpConnection::handlePlay()
         }                           
     }  
     
+    m_connStatus = START_PLAY;   
     return true;
 }
 
@@ -571,6 +584,25 @@ bool RtmpConnection::handlePlay2()
 {
     printf("[Play2] stream path: %s\n", m_streamPath.c_str());
     return false;
+}
+
+bool RtmpConnection::handDeleteStream()
+{
+    if(m_streamPath != "")
+    {
+        auto sessionPtr = m_rtmpServer->getSession(m_streamPath); 
+        if(sessionPtr)
+        {   
+            sessionPtr->removeClient(shared_from_this());                 
+        }  
+        
+        if(sessionPtr->getClients() == 0)
+        {
+            m_rtmpServer->removeSession(m_streamPath);
+        }
+        
+        m_rtmpMsgs.clear();
+    }
 }
 
 bool RtmpConnection::sendMetaData(AmfObjects& metaData)
@@ -589,11 +621,6 @@ bool RtmpConnection::sendMetaData(AmfObjects& metaData)
     }
     
     return true;
-}
-
-bool RtmpConnection::sendMetaData(std::shared_ptr<char> data, uint32_t size)
-{
-    return sendNotifyMessage(CHUNK_STREAM_ID, data, size);
 }
 
 void RtmpConnection::setPeerBandwidth()
@@ -666,13 +693,30 @@ bool RtmpConnection::sendNotifyMessage(uint32_t csid, std::shared_ptr<char> payl
     return true;
 }
 
+bool RtmpConnection::sendMediaData(uint8_t type, uint32_t ts, std::shared_ptr<char> payload, uint32_t payloadSize)
+{
+    if(this->isClosed())
+    {
+        return false;
+    }
+    
+    RtmpMessage rtmpMsg;
+    rtmpMsg.typeId = type;
+    rtmpMsg.clock = ts;
+    rtmpMsg.streamId = m_streamId;
+    rtmpMsg.data = payload;
+    rtmpMsg.length = payloadSize; 
+    sendRtmpChunks(CHUNK_STREAM_ID, rtmpMsg);  
+    return true;
+}
+
 void RtmpConnection::sendRtmpChunks(uint32_t csid, RtmpMessage& rtmpMsg)
 {    
     uint32_t bufferOffset = 0, payloadOffset = 0;
     uint32_t capacity = rtmpMsg.length + 1024; 
     std::shared_ptr<char> bufferPtr(new char[capacity]);
     char* buffer = bufferPtr.get();
-    
+   
     bufferOffset += this->createChunkBasicHeader(0, csid, buffer + bufferOffset); //first chunk
     bufferOffset += this->createChunkMessageHeader(0, rtmpMsg, buffer + bufferOffset);
     if(rtmpMsg.clock >= 0xffffff)
