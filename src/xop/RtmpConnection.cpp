@@ -700,6 +700,20 @@ bool RtmpConnection::sendMediaData(uint8_t type, uint32_t ts, std::shared_ptr<ch
         return false;
     }
     
+    if(!hasKeyFrame)
+    {
+        uint8_t frameType = (payload.get()[0] >> 4) & 0x0f;
+        uint8_t codecId = payload.get()[0] & 0x0f;
+        if(frameType == 1)
+        {
+            hasKeyFrame = true;
+        }
+        else
+        {
+            return true;
+        }
+    }
+   
     RtmpMessage rtmpMsg;
     rtmpMsg.typeId = type;
     rtmpMsg.clock = ts;

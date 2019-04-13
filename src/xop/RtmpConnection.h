@@ -143,6 +143,7 @@ private:
     uint32_t m_inChunkSize = 128;
     uint32_t m_outChunkSize = 128;
     uint32_t m_streamId = 0;
+    bool hasKeyFrame = false;
     
     AmfDecoder m_amfDec;
     AmfEncoder m_amfEnc;
