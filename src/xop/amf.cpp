@@ -6,37 +6,37 @@ using namespace xop;
 
 int AmfDecoder::decode(const char *data, int size, int n)
 {
-   	int bytesUsed = 0; 
-	while (size > bytesUsed)
-	{
+    int bytesUsed = 0; 
+    while (size > bytesUsed)
+    {
         int ret = 0;
-		char type = data[bytesUsed];
-		bytesUsed += 1;     
+        char type = data[bytesUsed];
+        bytesUsed += 1;     
 
-		switch (type)
-		{	
-		case AMF0_NUMBER:
+        switch (type)
+        {	
+        case AMF0_NUMBER:
             m_obj.type = AMF_NUMBER;     
-			ret = decodeNumber(data + bytesUsed, size - bytesUsed, m_obj.amf_number);
-			break;
+            ret = decodeNumber(data + bytesUsed, size - bytesUsed, m_obj.amf_number);
+            break;
 
-		case AMF0_BOOLEAN:
+        case AMF0_BOOLEAN:
             m_obj.type = AMF_BOOLEAN;
-			ret = decodeBoolean(data + bytesUsed, size - bytesUsed, m_obj.amf_boolean);
-			break;
+            ret = decodeBoolean(data + bytesUsed, size - bytesUsed, m_obj.amf_boolean);
+            break;
 
-		case AMF0_STRING:
+        case AMF0_STRING:
             m_obj.type = AMF_STRING;
-			ret = decodeString(data + bytesUsed, size - bytesUsed, m_obj.amf_string);	
-			break;
+            ret = decodeString(data + bytesUsed, size - bytesUsed, m_obj.amf_string);	
+            break;
 
-		case AMF0_OBJECT:   
-			ret = decodeObject(data + bytesUsed, size - bytesUsed, m_objs);
-			break;
+        case AMF0_OBJECT:   
+            ret = decodeObject(data + bytesUsed, size - bytesUsed, m_objs);
+            break;
             
         case AMF0_OBJECT_END:              
             break;
-        
+
         case AMF0_ECMA_ARRAY:
             ret = decodeObject(data + bytesUsed + 4, size - bytesUsed - 4, m_objs);
             break;
@@ -44,9 +44,9 @@ int AmfDecoder::decode(const char *data, int size, int n)
         case AMF0_NULL:
             break;
             
-		default:   
-			break;
-		}                    
+        default:   
+            break;
+        }                    
         
         if(ret < 0)
         {
@@ -60,107 +60,107 @@ int AmfDecoder::decode(const char *data, int size, int n)
         {
             break;
         }               
-	}
-	
+    }
+
 	return bytesUsed;
 }
 
 int AmfDecoder::decodeNumber(const char *data, int size, double& amf_number)
 {
-	if (size < 8)
-		return 0;
+    if (size < 8)
+        return 0;
 
-	char *ci = (char*)data;
-	char *co = (char*)&amf_number;
-	co[0] = ci[7];
-	co[1] = ci[6];
-	co[2] = ci[5];
-	co[3] = ci[4];
-	co[4] = ci[3];
-	co[5] = ci[2];
-	co[6] = ci[1];
-	co[7] = ci[0];
+    char *ci = (char*)data;
+    char *co = (char*)&amf_number;
+    co[0] = ci[7];
+    co[1] = ci[6];
+    co[2] = ci[5];
+    co[3] = ci[4];
+    co[4] = ci[3];
+    co[5] = ci[2];
+    co[6] = ci[1];
+    co[7] = ci[0];
 
-	return 8;
+    return 8;
 }
 
 int AmfDecoder::decodeString(const char *data, int size, std::string& amf_string)
 {
-	if (size < 2)
-	{
+    if (size < 2)
+    {
         return 0;
     }
-	
-	int bytesUsed = 0;
-	int strSize = decodeInt16(data, size);
-	bytesUsed += 2;
-	if (strSize > (size - bytesUsed))
-	{
+
+    int bytesUsed = 0;
+    int strSize = decodeInt16(data, size);
+    bytesUsed += 2;
+    if (strSize > (size - bytesUsed))
+    {
         return -1;
     }
 
-	amf_string = std::string(&data[bytesUsed], 0, strSize);
-	bytesUsed += strSize;
-	return bytesUsed;
+    amf_string = std::string(&data[bytesUsed], 0, strSize);
+    bytesUsed += strSize;
+    return bytesUsed;
 }
 
 int AmfDecoder::decodeObject(const char *data, int size, AmfObjects& amf_objs)
 {
-	amf_objs.clear();
-	int bytesUsed = 0;
-	while (size > 0)
-	{
-		int strLen = decodeInt16(data+ bytesUsed, size);
-		size -= 2;
-		if (size < strLen)
-		{
+    amf_objs.clear();
+    int bytesUsed = 0;
+    while (size > 0)
+    {
+        int strLen = decodeInt16(data+ bytesUsed, size);
+        size -= 2;
+        if (size < strLen)
+        {
             return bytesUsed;
         }
 
-		std::string key(data+bytesUsed+2, 0, strLen);
-		size -= strLen;
+        std::string key(data+bytesUsed+2, 0, strLen);
+        size -= strLen;
 
-		AmfDecoder dec;
-		int ret = dec.decode(data+bytesUsed+2+strLen, size, 1);		
-		bytesUsed += 2 + strLen + ret;
+        AmfDecoder dec;
+        int ret = dec.decode(data+bytesUsed+2+strLen, size, 1);		
+        bytesUsed += 2 + strLen + ret;
         if (ret <= 1)
-		{
+        {
             break; 
         }
         
-		amf_objs.emplace(key, dec.getObject());
-	}
-    
-	return bytesUsed;
+        amf_objs.emplace(key, dec.getObject());
+    }
+
+    return bytesUsed;
 }
 
 int AmfDecoder::decodeBoolean(const char *data, int size, bool& amf_boolean)
 {
-	if (size < 1)
-	{
+    if (size < 1)
+    {
         return 0;
     }
 
-	amf_boolean = (data[0] != 0);
-	return 1;
+    amf_boolean = (data[0] != 0);
+    return 1;
 }
 
 uint16_t AmfDecoder::decodeInt16(const char *data, int size)
 {
-	uint16_t val = readUint16BE((char*)data);
-	return val;
+    uint16_t val = readUint16BE((char*)data);
+    return val;
 }
 
 uint32_t AmfDecoder::decodeInt24(const char *data, int size)
 {
-	uint32_t val = readUint24BE((char*)data);
-	return val;
+    uint32_t val = readUint24BE((char*)data);
+    return val;
 }
 
 uint32_t AmfDecoder::decodeInt32(const char *data, int size)
 {
-	uint32_t val = readUint32BE((char*)data);
-	return val;
+    uint32_t val = readUint32BE((char*)data);
+    return val;
 }
 
 AmfEncoder::AmfEncoder(uint32_t size)
@@ -181,7 +181,7 @@ void AmfEncoder::encodeInt8(int8_t value)
     {
         this->realloc(m_size + 1024);
     }
-    
+
     m_data.get()[m_index++] = value;
 }
 
@@ -214,7 +214,7 @@ void AmfEncoder::encodeInt32(int32_t value)
     {
         this->realloc(m_size + 1024);
     }
- 
+
     writeUint32BE(m_data.get()+m_index, value);
     m_index += 4; 
 }
@@ -286,8 +286,36 @@ void AmfEncoder::encodeObjects(AmfObjects& objs)
         encodeInt8(AMF0_NULL);
         return ;
     }
-    
+
     encodeInt8(AMF0_OBJECT);
+
+    for(auto iter : objs)
+    {     
+        encodeString(iter.first.c_str(), iter.first.size(), false);
+        switch(iter.second.type)
+        {
+            case AMF_NUMBER:
+                encodeNumber(iter.second.amf_number);
+                break;
+            case AMF_STRING:
+                encodeString(iter.second.amf_string.c_str(), iter.second.amf_string.size());
+                break;
+            case AMF_BOOLEAN:
+                encodeBoolean(iter.second.amf_boolean);
+                break;
+            default:
+                break;
+        }
+    }
+
+    encodeString("", 0, false);
+    encodeInt8(AMF0_OBJECT_END);
+}
+
+void AmfEncoder::encodeECMA(AmfObjects& objs)
+{
+    encodeInt8(AMF0_ECMA_ARRAY);
+    encodeInt32(0);
     
     for(auto iter : objs)
     {     
@@ -307,16 +335,9 @@ void AmfEncoder::encodeObjects(AmfObjects& objs)
                 break;
         }
     }
-    
+
     encodeString("", 0, false);
     encodeInt8(AMF0_OBJECT_END);
-}
-
-void AmfEncoder::encodeECMA(AmfObjects& objs)
-{
-    encodeInt8(AMF0_ECMA_ARRAY);
-    encodeInt32(0);
-    encodeObjects(objs);
 }
 
 void AmfEncoder::realloc(uint32_t size)
@@ -325,7 +346,7 @@ void AmfEncoder::realloc(uint32_t size)
     {
         return ;
     }
-    
+
     std::shared_ptr<char> data(new char[size]);
     memcpy(data.get(), m_data.get(), m_index);
     m_size = size;

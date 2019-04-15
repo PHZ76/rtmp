@@ -96,12 +96,12 @@ void TcpConnection::handleWrite()
     //std::lock_guard<std::mutex> lock(_mutex);
     if (_isClosed)
         return;
-
+    printf("buf size : %u\n", _writeBufferPtr->size());
     int ret = 0;
     bool empty = false;
     do
     {
-        ret = _writeBufferPtr->send(_channelPtr->fd());
+        ret = _writeBufferPtr->send(_channelPtr->fd(), 10000);
         if (ret < 0)
         {
             handleClose();

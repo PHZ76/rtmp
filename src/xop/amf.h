@@ -57,29 +57,29 @@ typedef enum
 typedef enum
 {
     AMF_NUMBER,
-	AMF_BOOLEAN,
-	AMF_STRING,
+    AMF_BOOLEAN,
+    AMF_STRING,
 } AmfObjectType;
 
 struct AmfObject
 {  
     AmfObjectType type;
-    
+
     std::string amf_string;
-	double amf_number;
+    double amf_number;
     bool amf_boolean;    
-    
+
     AmfObject()
     {
         
     }
-    
+
     AmfObject(std::string str)
     {
        this->type = AMF_STRING; 
        this->amf_string = str; 
     }
-    
+
     AmfObject(double number)
     {
        this->type = AMF_NUMBER; 
@@ -93,29 +93,29 @@ class AmfDecoder
 {
 public:    
     int decode(const char *data, int size, int n=-1); //n: 解码次数
-    
+
     void reset()
     {
         m_obj.amf_string = "";
         m_obj.amf_number = 0;
         m_objs.clear();
     }
-    
-    std::string getString() const
-	{ return m_obj.amf_string; }
 
-	double getNumber() const
-	{ return m_obj.amf_number; }
+    std::string getString() const
+    { return m_obj.amf_string; }
+
+    double getNumber() const
+    { return m_obj.amf_number; }
 
     bool hasObject(std::string key) const
     { return (m_objs.find(key) != m_objs.end()); }
-    
+
     AmfObject getObject(std::string key) 
     { return m_objs[key]; }
-    
+
     AmfObject getObject() 
     { return m_obj; }
-    
+
     AmfObjects getObjects() 
     { return m_objs; }
     
@@ -138,26 +138,26 @@ public:
     AmfEncoder(uint32_t size = 1024);
     ~AmfEncoder();
      
-     void reset()
-     {
-         m_index = 0;
-     }
+    void reset()
+    {
+     m_index = 0;
+    }
      
-     std::shared_ptr<char> data()
-     {
-         return m_data;
-     }
+    std::shared_ptr<char> data()
+    {
+     return m_data;
+    }
+
+    uint32_t size() const 
+    {
+     return m_index;
+    }
      
-     uint32_t size() const 
-     {
-         return m_index;
-     }
-     
-     void encodeString(const char* str, int len, bool isObject=true);
-     void encodeNumber(double value);
-     void encodeBoolean(int value);
-     void encodeObjects(AmfObjects& objs);
-     void encodeECMA(AmfObjects& objs);
+    void encodeString(const char* str, int len, bool isObject=true);
+    void encodeNumber(double value);
+    void encodeBoolean(int value);
+    void encodeObjects(AmfObjects& objs);
+    void encodeECMA(AmfObjects& objs);
      
 private:
     void encodeInt8(int8_t value);
@@ -165,7 +165,7 @@ private:
     void encodeInt24(int32_t value);
     void encodeInt32(int32_t value); 
     void realloc(uint32_t size);
-    
+
     std::shared_ptr<char> m_data;    
     uint32_t m_size  = 0;
     uint32_t m_index = 0;

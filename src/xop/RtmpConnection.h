@@ -11,11 +11,6 @@ namespace xop
 
 class RtmpServer;
 
-struct ChunkBasicHeader
-{
-    
-};
-
 // chunk header: basic_header + rtmp_message_header 
 struct RtmpMessageHeader
 {
@@ -28,15 +23,17 @@ struct RtmpMessageHeader
 struct RtmpMessage 
 {
     uint32_t timestamp = 0;
+    uint32_t timestampDelta = 0;
     uint32_t length = 0;
     uint8_t  typeId = 0;
     uint32_t streamId = 0;
     uint32_t extTimestamp = 0;   
-   
+
+    uint8_t  csid = 0;
     uint64_t clock = 0;    
     uint32_t index = 0;
     std::shared_ptr<char> data = nullptr;
-    
+
     void reset()
     {        
         index = 0;       
@@ -73,58 +70,60 @@ public:
     
     enum ChunkSreamId
     {
-        CHUNK_CONTROL_ID = 2, // 控制消息
-        CHUNK_RESULT_ID  = 3, 
-        CHUNK_STREAM_ID  = 4, 
+        CHUNK_CONTROL_ID    = 2, // 控制消息
+        CHUNK_INVOKE_ID     = 3, 
+        CHUNK_AUDIO_ID      = 4, 
+        CHUNK_VIDEO_ID      = 5, 
+        CHUNK_DATA_ID       = 6,
     };
     
     RtmpConnection() = delete;
     RtmpConnection(RtmpServer* rtmpServer, TaskScheduler* taskScheduler, SOCKET sockfd);
     ~RtmpConnection();
-    
+
     std::string getStreamPath() const
     { return m_streamPath; }
-    
+
     std::string getStreamName() const
     { return m_streamName; }
-    
+
     std::string getApp() const
     { return m_app; }
-    
+
     AmfObjects getMetaData() const 
     { return m_metaData; }
-    
+
     bool isPlayer() const 
     { return m_connStatus==START_PLAY; }
-    
+
     bool isPublisher() const 
     { return m_connStatus==START_PUBLISH; }        
     
 private:
     friend class RtmpSession;
-    
+
     bool onRead(BufferReader& buffer);
     void onClose();
-    
+
     bool handleHandshake(BufferReader& buffer);
     bool handleChunk(BufferReader& buffer);
     bool handleMessage(RtmpMessage& rtmpMsg);
     bool handleInvoke(RtmpMessage& rtmpMsg);
     bool handleNotify(RtmpMessage& rtmpMsg);
-    bool handleVideo(RtmpMessage& rtmpMsg);
-    bool handleAudio(RtmpMessage& rtmpMsg);
-    
+    bool handleVideo(RtmpMessage rtmpMsg);
+    bool handleAudio(RtmpMessage rtmpMsg);
+
     bool handleConnect();
     bool handleCreateStream();
     bool handlePublish();
     bool handlePlay();
     bool handlePlay2();
     bool handDeleteStream();
-    
+
     void setPeerBandwidth();
     void sendAcknowledgement();
     void setChunkSize();
-    
+
     bool sendInvokeMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payloadSize);
     bool sendNotifyMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payloadSize);   
     bool sendMetaData(AmfObjects& metaData);
@@ -132,19 +131,18 @@ private:
     void sendRtmpChunks(uint32_t csid, RtmpMessage& rtmpMsg);
     int createChunkBasicHeader(uint8_t fmt, uint32_t csid, char* buf);
     int createChunkMessageHeader(uint8_t fmt, RtmpMessage& rtmpMsg, char* buf);   
-    
+
     RtmpServer *m_rtmpServer;
     TaskScheduler *m_taskScheduler;
     std::shared_ptr<xop::Channel> m_channelPtr;
-    
+
     ConnectionStatus m_connStatus = HANDSHAKE_C0C1;    
     const int kRtmpVersion = 0x03;
     const int kChunkMessageLen[4] = {11, 7, 3, 0};
     uint32_t m_inChunkSize = 128;
     uint32_t m_outChunkSize = 128;
     uint32_t m_streamId = 0;
-    bool hasKeyFrame = false;
-    
+    bool hasKeyFrame = false; 
     AmfDecoder m_amfDec;
     AmfEncoder m_amfEnc;
     std::string m_app;
@@ -152,10 +150,10 @@ private:
     std::string m_streamPath;
     AmfObjects m_metaData;
     std::map<int, RtmpMessage> m_rtmpMsgs;  
-    
+
     const uint32_t kPeerBandwidth       = 5000000;
     const uint32_t kAcknowledgementSize = 5000000;
-    const uint32_t kMaxChunkSize        = 128;
+    const uint32_t kMaxChunkSize        = 60000;
     const uint32_t kStreamId            = 1;
 };
       
