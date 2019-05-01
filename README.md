@@ -3,7 +3,7 @@
 编译运行
 -
 * make
-*./rtmp_server
+* ./rtmp_server
 
 测试
 -
