@@ -6,7 +6,7 @@ using namespace xop;
 TcpConnection::TcpConnection(TaskScheduler *taskScheduler, int sockfd)
 	: _taskScheduler(taskScheduler)
 	, _readBufferPtr(new BufferReader)
-	, _writeBufferPtr(new BufferWriter(500))
+	, _writeBufferPtr(new BufferWriter(1000))
 	, _channelPtr(new Channel(sockfd))
 {
     _isClosed = false;
@@ -17,7 +17,7 @@ TcpConnection::TcpConnection(TaskScheduler *taskScheduler, int sockfd)
     _channelPtr->setErrorCallback([this]() { this->handleError(); });
 
     SocketUtil::setNonBlock(sockfd);
-    SocketUtil::setSendBufSize(sockfd, 100 * 1024);
+    SocketUtil::setSendBufSize(sockfd, 512 * 1024);
     SocketUtil::setKeepAlive(sockfd);
 
     _channelPtr->enableReading();
@@ -39,11 +39,11 @@ void TcpConnection::send(std::shared_ptr<char> data, uint32_t size)
         return;
 
     {
-        //std::lock_guard<std::mutex> lock(_mutex);
+        std::lock_guard<std::mutex> lock(_mutex);
         _writeBufferPtr->append(data, size);
     }
     
-    this->handleWrite();
+    _taskScheduler->addTriggerEvent([this]{ this->handleWrite(); });    
     return;
 }
 
@@ -53,11 +53,11 @@ void TcpConnection::send(const char *data, uint32_t size)
         return;
 
     {
-        //std::lock_guard<std::mutex> lock(_mutex);
+        std::lock_guard<std::mutex> lock(_mutex);
         _writeBufferPtr->append(data, size);
     }
     
-    this->handleWrite();
+    _taskScheduler->addTriggerEvent([this]{ this->handleWrite(); });
     return;
 }
 
@@ -81,27 +81,32 @@ void TcpConnection::handleRead()
         return;
     }
 
-    if (_readCB)
-    {
-        bool ret = _readCB(shared_from_this(), *_readBufferPtr);
-        if (false == ret)
-        {
-            this->handleClose();
-        }
-    }
+     if (_readCB)
+     {
+        _taskScheduler->addTriggerEvent([this]{   
+            if(_readBufferPtr->size() > 0)
+            {                           
+                bool ret = _readCB(shared_from_this(), *_readBufferPtr);
+                if (false == ret)
+                {
+                    this->handleClose();
+                }
+            }
+        });
+     }
 }
 
 void TcpConnection::handleWrite()
 {
-    //std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
     if (_isClosed)
         return;
-    printf("buf size : %u\n", _writeBufferPtr->size());
+
     int ret = 0;
     bool empty = false;
     do
     {
-        ret = _writeBufferPtr->send(_channelPtr->fd(), 10000);
+        ret = _writeBufferPtr->send(_channelPtr->fd());
         if (ret < 0)
         {
             handleClose();

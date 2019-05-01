@@ -50,7 +50,7 @@ protected:
 
     static const char kTriggetEvent = 1;
     static const char kTimerEvent = 2;
-    static const int kMaxTriggetEvents = 5000;
+    static const int kMaxTriggetEvents = 10000;
 };
 
 }

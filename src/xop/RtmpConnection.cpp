@@ -19,7 +19,7 @@ RtmpConnection::RtmpConnection(RtmpServer *rtmpServer, TaskScheduler *taskSchedu
         this->onClose();
     });
 
-    m_outChunkSize = kMaxChunkSize;
+    
 }
 
 RtmpConnection::~RtmpConnection()
@@ -501,7 +501,7 @@ bool RtmpConnection::handlePublish()
     m_amfEnc.encodeObjects(objects);
 
     bool isError = false;
-    if(m_rtmpServer->hasSession(m_streamPath)) 
+    if(m_rtmpServer->hasPublisher(m_streamPath)) 
     {
         isError = true;
         objects["level"] = AmfObject(std::string("error"));
@@ -627,6 +627,8 @@ bool RtmpConnection::handDeleteStream()
         
         m_rtmpMsgs.clear();
     }
+
+	return true;
 }
 
 bool RtmpConnection::sendMetaData(AmfObjects& metaData)
@@ -673,6 +675,8 @@ void RtmpConnection::sendAcknowledgement()
 
 void RtmpConnection::setChunkSize()
 {
+    m_outChunkSize = kMaxChunkSize;
+    
     std::shared_ptr<char> data(new char[4]);
     writeUint32BE((char*)data.get(), m_outChunkSize);    
 

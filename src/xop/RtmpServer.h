@@ -20,6 +20,7 @@ public:
     
     RtmpSession::Ptr getSession(std::string streamPath);
     bool hasSession(std::string streamPath);
+    bool hasPublisher(std::string streamPath);
     
 private:
     virtual TcpConnection::Ptr newConnection(SOCKET sockfd);

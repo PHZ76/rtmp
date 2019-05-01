@@ -81,7 +81,7 @@ public:
     uint32_t readAll(std::string& data);
     uint32_t readUntilCrlf(std::string& data);
 
-    uint32_t bufferSize() const 
+    uint32_t size() const 
     { return _buffer->size(); }
 
 private:

@@ -12,6 +12,10 @@ RtmpServer::RtmpServer(EventLoop* loop, std::string ip, uint16_t port)
     {
         LOG_INFO("RTSP Server listening on %d failed.", port);
     }
+    else
+    {
+        LOG_INFO("RTMP Server listen on 1935.\n");
+    }
 }
 
 RtmpServer::~RtmpServer()
@@ -55,4 +59,16 @@ RtmpSession::Ptr RtmpServer::getSession(std::string streamPath)
     
     return m_rtmpSessions[streamPath];
 }
+
+bool RtmpServer::hasPublisher(std::string streamPath)
+{
+    auto sessionPtr = getSession(streamPath);
+    if(sessionPtr == nullptr)
+    {
+       return false;
+    }
+    
+    return sessionPtr->isPublishing();
+}
+
 
