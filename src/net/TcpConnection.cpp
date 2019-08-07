@@ -98,7 +98,6 @@ void TcpConnection::handleRead()
 
 void TcpConnection::handleWrite()
 {
-    std::lock_guard<std::mutex> lock(_mutex);
     if (_isClosed)
         return;
 
