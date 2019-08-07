@@ -18,8 +18,6 @@ RtmpConnection::RtmpConnection(RtmpServer *rtmpServer, TaskScheduler *taskSchedu
     this->setCloseCallback([this](std::shared_ptr<TcpConnection> conn) {
         this->onClose();
     });
-
-    
 }
 
 RtmpConnection::~RtmpConnection()
@@ -161,6 +159,7 @@ bool RtmpConnection::handleChunk(BufferReader& buffer)
         }         
 
         RtmpMessageHeader header;  
+		memset(&header, 0, sizeof(RtmpMessageHeader));
         memcpy(&header, buf+bytesUsed, headerLen);
         bytesUsed += headerLen;
 
@@ -169,11 +168,7 @@ bool RtmpConnection::handleChunk(BufferReader& buffer)
         
         if (headerLen >= 7) // type 1
         {    
-            uint32_t length = readUint24BE((char*)header.length);  
-            if(length > 60000)
-            {
-                return false;
-            }    
+            uint32_t length = readUint24BE((char*)header.length);   
             
             if(rtmpMsg.length != length)
             {                
@@ -431,7 +426,7 @@ bool RtmpConnection::handleAudio(RtmpMessage rtmpMsg)
         auto sessionPtr = m_rtmpServer->getSession(m_streamPath); 
         if(sessionPtr)
         {   
-            sessionPtr->sendMediaData(RTMP_AUDIO, rtmpMsg.clock, rtmpMsg.data, rtmpMsg.length);     
+           sessionPtr->sendMediaData(RTMP_AUDIO, rtmpMsg.clock, rtmpMsg.data, rtmpMsg.length);     
         }  
     } 
     

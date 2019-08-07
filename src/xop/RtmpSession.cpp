@@ -47,7 +47,7 @@ void RtmpSession::sendMediaData(uint8_t type, uint32_t ts, std::shared_ptr<char>
         return ;
     }
     
-    for (auto iter = m_clients.begin(); iter != m_clients.end(); iter++)
+    for (auto iter = m_clients.begin(); iter != m_clients.end(); )
     {
         auto conn = iter->second.lock(); 
         if (conn == nullptr) // conn disconect
@@ -59,11 +59,13 @@ void RtmpSession::sendMediaData(uint8_t type, uint32_t ts, std::shared_ptr<char>
             RtmpConnection* player = (RtmpConnection*)conn.get();
             if(player->isPlayer())
             {               
-                player->sendMediaData(type, ts, data, size);
-                iter++;
+                player->sendMediaData(type, ts, data, size);               
             }
+			iter++;
         }
     }
+
+	return;
 }
 
 void RtmpSession::addClient(std::shared_ptr<TcpConnection> conn)
@@ -74,6 +76,7 @@ void RtmpSession::addClient(std::shared_ptr<TcpConnection> conn)
     {
         m_hasPublisher = true;
     }
+	return;
 }
 
 void RtmpSession::removeClient(std::shared_ptr<TcpConnection> conn)
