@@ -8,6 +8,7 @@
 #include <memory>
 #include <queue>
 #include <string>
+#include "Socket.h"
 
 namespace xop
 {
@@ -27,7 +28,7 @@ public:
 
     bool append(std::shared_ptr<char> data, uint32_t size, uint32_t index=0);
     bool append(const char* data, uint32_t size, uint32_t index=0);
-    int send(int sockfd, int timeout=0); // timeout: ms
+    int send(SOCKET sockfd, int timeout=0); // timeout: ms
 
     bool isEmpty() const 
     { return _buffer->empty(); }
@@ -36,7 +37,7 @@ public:
     { return ((int)_buffer->size()>=_maxQueueLength?true:false); }
 
     uint32_t size() const 
-    { return _buffer->size(); }
+    { return (uint32_t)_buffer->size(); }
 	
 private:
     typedef struct 
@@ -49,7 +50,7 @@ private:
     std::shared_ptr<std::queue<Packet>> _buffer;  		
     int _maxQueueLength = 0;
 	 
-    static const int kMaxQueueLength = 30;
+    static const int kMaxQueueLength = 10000;
 };
 
 }

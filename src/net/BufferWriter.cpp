@@ -89,13 +89,13 @@ bool BufferWriter::append(const char* data, uint32_t size, uint32_t index)
     return true;
 }
 
-int BufferWriter::send(int sockfd, int timeout)
+int BufferWriter::send(SOCKET sockfd, int timeout)
 {		
     if(timeout > 0)
         SocketUtil::setBlock(sockfd, timeout); // 超时返回-1
 
 	int ret = 0;
-	int count = 5;
+	int count = 1;
 	do
 	{
 		if (_buffer->empty())
@@ -103,7 +103,7 @@ int BufferWriter::send(int sockfd, int timeout)
 
 		count -= 1;
 		Packet &pkt = _buffer->front();
-		ret = ::send(sockfd, pkt.data.get() + pkt.writeIndex, pkt.size - pkt.writeIndex, 0);        
+		ret = ::send(sockfd, pkt.data.get() + pkt.writeIndex, pkt.size - pkt.writeIndex, 0);
 		if (ret > 0)
 		{
 			pkt.writeIndex += ret;
@@ -114,7 +114,7 @@ int BufferWriter::send(int sockfd, int timeout)
 			}
 		}
 		else if (ret < 0)
-		{          
+		{
 #if defined(__linux) || defined(__linux__)
 			if (errno == EINTR || errno == EAGAIN)
 #elif defined(WIN32) || defined(_WIN32)
@@ -122,8 +122,8 @@ int BufferWriter::send(int sockfd, int timeout)
 			if (error == WSAEWOULDBLOCK || error == WSAEINPROGRESS || error == 0)
 #endif
 				ret = 0;
-		}        
-	} while (count>0 && ret>0);
+		}
+	} while (count>0);
 
     if(timeout > 0)
         SocketUtil::setNonBlock(sockfd);

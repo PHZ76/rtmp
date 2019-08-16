@@ -77,8 +77,9 @@ bool TaskScheduler::addTriggerEvent(TriggerEvent callback)
 
 void TaskScheduler::wake()
 {
-	char event[1] = { 0 };
-	_wakeupPipe->read(event, 1);
+	char event[10] = { 0 };
+	while (_wakeupPipe->read(event, 10) > 0);
+
 	return;
 }
 

@@ -3,10 +3,10 @@
 
 using namespace xop;
 
-TcpConnection::TcpConnection(TaskScheduler *taskScheduler, int sockfd)
+TcpConnection::TcpConnection(TaskScheduler *taskScheduler, SOCKET sockfd)
 	: _taskScheduler(taskScheduler)
 	, _readBufferPtr(new BufferReader)
-	, _writeBufferPtr(new BufferWriter(1000))
+	, _writeBufferPtr(new BufferWriter(500))
 	, _channelPtr(new Channel(sockfd))
 {
     _isClosed = false;
@@ -17,7 +17,7 @@ TcpConnection::TcpConnection(TaskScheduler *taskScheduler, int sockfd)
     _channelPtr->setErrorCallback([this]() { this->handleError(); });
 
     SocketUtil::setNonBlock(sockfd);
-    SocketUtil::setSendBufSize(sockfd, 512 * 1024);
+    SocketUtil::setSendBufSize(sockfd, 100 * 1024);
     SocketUtil::setKeepAlive(sockfd);
 
     _channelPtr->enableReading();
@@ -26,7 +26,7 @@ TcpConnection::TcpConnection(TaskScheduler *taskScheduler, int sockfd)
 
 TcpConnection::~TcpConnection()
 {
-    int fd = _channelPtr->fd();
+	SOCKET fd = _channelPtr->fd();
     if (fd > 0)
     {
         SocketUtil::close(fd);
@@ -38,12 +38,8 @@ void TcpConnection::send(std::shared_ptr<char> data, uint32_t size)
     if (_isClosed)
         return;
 
-    {
-        std::lock_guard<std::mutex> lock(_mutex);
-        _writeBufferPtr->append(data, size);
-    }
-    
-    _taskScheduler->addTriggerEvent([this]{ this->handleWrite(); });    
+    _writeBufferPtr->append(data, size);
+    this->handleWrite();
     return;
 }
 
@@ -52,12 +48,8 @@ void TcpConnection::send(const char *data, uint32_t size)
     if (_isClosed)
         return;
 
-    {
-        std::lock_guard<std::mutex> lock(_mutex);
-        _writeBufferPtr->append(data, size);
-    }
-    
-    _taskScheduler->addTriggerEvent([this]{ this->handleWrite(); });
+    _writeBufferPtr->append(data, size);
+    this->handleWrite();
     return;
 }
 
@@ -74,26 +66,21 @@ void TcpConnection::handleRead()
     if (_isClosed)
         return;
 
-    int ret = _readBufferPtr->readFd(_channelPtr->fd());
+	int ret = _readBufferPtr->readFd(_channelPtr->fd());
     if (ret <= 0)
     {
         this->handleClose();
         return;
     }
 
-     if (_readCB)
-     {
-        _taskScheduler->addTriggerEvent([this]{   
-            if(_readBufferPtr->size() > 0)
-            {                           
-                bool ret = _readCB(shared_from_this(), *_readBufferPtr);
-                if (false == ret)
-                {
-                    this->handleClose();
-                }
-            }
-        });
-     }
+    if (_readCB)
+    {
+        bool ret = _readCB(shared_from_this(), *_readBufferPtr);
+        if (false == ret)
+        {
+            this->handleClose();
+        }
+    }
 }
 
 void TcpConnection::handleWrite()

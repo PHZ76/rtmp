@@ -9,10 +9,11 @@
 #include <string>
 #include <algorithm>  
 #include <memory>  
+#include "Socket.h"
 
 namespace xop
 {
-    
+
 uint32_t readUint32BE(char* data);
 uint32_t readUint32LE(char* data);
 uint32_t readUint24BE(char* data);
@@ -23,15 +24,15 @@ uint16_t readUint16LE(char* data);
 class BufferReader
 {
 public:	
-	static const uint32_t kInitialSize = 4096;
+	static const uint32_t kInitialSize = 2048;
     BufferReader(uint32_t initialSize = kInitialSize);
     ~BufferReader();
 
     uint32_t readableBytes() const
-    { return _writerIndex - _readerIndex; }
+    { return (uint32_t)(_writerIndex - _readerIndex); }
 
     uint32_t writableBytes() const
-    {  return _buffer->size() - _writerIndex; }
+    {  return (uint32_t)(_buffer->size() - _writerIndex); }
 
     char* peek() 
     { return begin() + _readerIndex; }
@@ -77,12 +78,12 @@ public:
     void retrieveUntil(const char* end)
     { retrieve(end - peek()); }
 
-    int readFd(int sockfd);
+    int readFd(SOCKET sockfd);
     uint32_t readAll(std::string& data);
     uint32_t readUntilCrlf(std::string& data);
 
-    uint32_t size() const 
-    { return _buffer->size(); }
+    uint32_t bufferSize() const 
+    { return (uint32_t)_buffer->size(); }
 
 private:
     char* begin()
@@ -102,8 +103,8 @@ private:
     size_t _writerIndex = 0;
 
     static const char kCRLF[];
-    static const uint32_t MAX_BYTES_PER_READ = 4096;
-    static const uint32_t MAX_BUFFER_SIZE = 10240*100;
+	static const uint32_t MAX_BYTES_PER_READ = 4096;
+	static const uint32_t MAX_BUFFER_SIZE = 1024 * 100000;
 };
 
 }

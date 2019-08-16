@@ -41,8 +41,8 @@ EventLoop::EventLoop(int nThreads)
 		_taskSchedulers.push_back(taskSchedulerPtr);
 		if (n != 0)
 		{
-			std::shared_ptr<std::thread> t(new std::thread(&TaskScheduler::start, taskSchedulerPtr.get()));			
-            _threads.push_back(t);
+			std::shared_ptr<std::thread> t(new std::thread(&TaskScheduler::start, taskSchedulerPtr.get()));
+			_threads.push_back(t);
 		}
 	}
 }
