@@ -213,29 +213,31 @@ bool RtmpConnection::handleChunk(BufferReader& buffer)
             return false;
         }
                 
-        memcpy(rtmpMsg.data.get()+rtmpMsg.index, buf+bytesUsed, chunkSize);
-        bytesUsed += chunkSize;
-        rtmpMsg.index += chunkSize; 
+		memcpy(rtmpMsg.data.get()+rtmpMsg.index, buf+bytesUsed, chunkSize);
+		bytesUsed += chunkSize;
+		rtmpMsg.index += chunkSize; 
 
-		if (fmt == 0 && rtmpMsg.extTimestamp > 0)
+		if(rtmpMsg.extTimestamp > 0)
 		{
-			rtmpMsg.clock = rtmpMsg.extTimestamp;
+			if (fmt == 0)
+			{
+				rtmpMsg.clock = rtmpMsg.extTimestamp;
+			}
+			else
+			{
+				rtmpMsg.clock += rtmpMsg.extTimestamp;			
+			}	
 			rtmpMsg.extTimestamp = 0;
 		}
-		else
-		{
-			rtmpMsg.clock += rtmpMsg.extTimestamp;
-			rtmpMsg.extTimestamp = 0;
-		}		
 
-        if(rtmpMsg.index > 0 && rtmpMsg.index == rtmpMsg.length)
-        {                           
-            if(!handleMessage(rtmpMsg))
-            {              
-                return false;
-            } 
-            rtmpMsg.reset();    
-        }        
+		if(rtmpMsg.index > 0 && rtmpMsg.index == rtmpMsg.length)
+		{                           
+			if(!handleMessage(rtmpMsg))
+			{              
+				return false;
+			} 
+			rtmpMsg.reset();    
+		}        
 
         buffer.retrieve(bytesUsed);  
     } while(1);
