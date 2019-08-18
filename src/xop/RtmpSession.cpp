@@ -20,10 +20,10 @@ void RtmpSession::sendMetaData(AmfObjects& metaData)
         return ;
     }
     
-    for (auto iter = m_clients.begin(); iter != m_clients.end(); iter++)
+	for (auto iter = m_clients.begin(); iter != m_clients.end(); )
     {
         auto conn = iter->second.lock(); 
-        if (conn == nullptr) // conn disconect
+        if (conn == nullptr) 
         {
             m_clients.erase(iter++);
         }
@@ -31,10 +31,10 @@ void RtmpSession::sendMetaData(AmfObjects& metaData)
         {	
             RtmpConnection* player = (RtmpConnection*)conn.get();
             if(player->isPlayer())
-            {
-                player->sendMetaData(metaData);
-                iter++;
+            {               
+                player->sendMetaData(metaData);          
             }
+			iter++;
         }
     }
 } 

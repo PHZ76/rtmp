@@ -153,7 +153,7 @@ private:
 
     const uint32_t kPeerBandwidth       = 5000000;
     const uint32_t kAcknowledgementSize = 5000000;
-    const uint32_t kMaxChunkSize        = 60000;
+    const uint32_t kMaxChunkSize        = 128;
     const uint32_t kStreamId            = 1;
 };
       

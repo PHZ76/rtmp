@@ -170,7 +170,7 @@ bool RtmpConnection::handleChunk(BufferReader& buffer)
         {    
             uint32_t length = readUint24BE((char*)header.length);   
             
-            if(rtmpMsg.length != length)
+            if(rtmpMsg.length != length || rtmpMsg.data==nullptr)
             {                
                 rtmpMsg.length = length;
                 rtmpMsg.data.reset(new char[rtmpMsg.length]);   
@@ -181,52 +181,25 @@ bool RtmpConnection::handleChunk(BufferReader& buffer)
                           
         if (headerLen >= 11) // type 0
         {
-            rtmpMsg.streamId = header.streamId[0] | ((uint32_t) header.streamId[1] << 8) |  \
-                                ((uint32_t) header.streamId[2] << 16) | ((uint32_t) header.streamId[3] << 24);
+			rtmpMsg.streamId = readUint24LE((char*)header.streamId);  
         }
        
-        if (headerLen >= 3) // type 2
+        if (headerLen >= 3) // type 2, 1, 0
         {            
-            //if(fmt == 0)
-            {
-                rtmpMsg.timestamp = readUint24BE((char*)header.timestamp);         
-            }
-/*             else if(fmt == 1)
-            {
-                rtmpMsg.timestampDelta = readUint24BE((char*)header.timestamp);
-            }
-            else if(fmt == 2)
-            {
-                rtmpMsg.timestampDelta = readUint24BE((char*)header.timestamp);
-            }     */                  
-        }       
-               
-        /* if (rtmpMsg.timestamp >= 0xffffff) // extended timestamp
-        {            
-            if((bufSize-bytesUsed) < 4)
-            {                    
-                break;
-            }
+            rtmpMsg.timestamp = readUint24BE((char*)header.timestamp);   
+			rtmpMsg.extTimestamp = readUint24BE((char*)header.timestamp);
 
-            rtmpMsg.extTimestamp = ((uint32_t)buf[bytesUsed+3]) | ((uint32_t)buf[bytesUsed+2] << 8) | \
-                                    (uint32_t)(buf[bytesUsed+1] << 16) | ((uint32_t) buf[bytesUsed] << 24);
-            bytesUsed += 4;         
-        }
-        else
-        {
-            rtmpMsg.extTimestamp = rtmpMsg.timestamp;
-        }
-
-        if(fmt == 0)
-        {
-            rtmpMsg.clock = rtmpMsg.extTimestamp;
-        }
-        else
-        {
-            rtmpMsg.clock += rtmpMsg.extTimestamp; //delta
-        }            
-        */    
-        
+			if (rtmpMsg.timestamp >= 0xffffff) // extended timestamp
+			{
+				if ((bufSize - bytesUsed) < 4)
+				{
+					break;
+				}
+				rtmpMsg.extTimestamp = readUint32BE((char*)buf + bytesUsed);
+				bytesUsed += 4;
+			}
+        }                     
+           
         uint32_t chunkSize = rtmpMsg.length - rtmpMsg.index;
         if (chunkSize > m_inChunkSize)
             chunkSize = m_inChunkSize;       
@@ -243,15 +216,17 @@ bool RtmpConnection::handleChunk(BufferReader& buffer)
         memcpy(rtmpMsg.data.get()+rtmpMsg.index, buf+bytesUsed, chunkSize);
         bytesUsed += chunkSize;
         rtmpMsg.index += chunkSize; 
-          
-        if(fmt == 0)
-        {
-            rtmpMsg.clock = rtmpMsg.timestamp;                
-        }
-        else 
-        {
-            rtmpMsg.clock += rtmpMsg.timestamp;
-        }                 
+
+		if (fmt == 0 && rtmpMsg.extTimestamp > 0)
+		{
+			rtmpMsg.clock = rtmpMsg.extTimestamp;
+			rtmpMsg.extTimestamp = 0;
+		}
+		else
+		{
+			rtmpMsg.clock += rtmpMsg.extTimestamp;
+			rtmpMsg.extTimestamp = 0;
+		}		
 
         if(rtmpMsg.index > 0 && rtmpMsg.index == rtmpMsg.length)
         {                           
@@ -259,7 +234,7 @@ bool RtmpConnection::handleChunk(BufferReader& buffer)
             {              
                 return false;
             } 
-            rtmpMsg.reset();            
+            rtmpMsg.reset();    
         }        
 
         buffer.retrieve(bytesUsed);  
@@ -759,7 +734,7 @@ bool RtmpConnection::sendMediaData(uint8_t type, uint32_t ts, std::shared_ptr<ch
 void RtmpConnection::sendRtmpChunks(uint32_t csid, RtmpMessage& rtmpMsg)
 {    
     uint32_t bufferOffset = 0, payloadOffset = 0;
-    uint32_t capacity = rtmpMsg.length + 1024; 
+    uint32_t capacity = rtmpMsg.length + rtmpMsg.length/m_outChunkSize*5 + 1024; 
     std::shared_ptr<char> bufferPtr(new char[capacity]);
     char* buffer = bufferPtr.get();
 
