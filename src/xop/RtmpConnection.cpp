@@ -28,15 +28,15 @@ RtmpConnection::~RtmpConnection()
 bool RtmpConnection::onRead(BufferReader& buffer)
 {   
     bool ret = true;
-    if(m_connStatus >= HANDSHAKE_COMPLETE)
+    if(m_connState >= HANDSHAKE_COMPLETE)
     {
         ret = handleChunk(buffer);
     }
-    else if(m_connStatus == HANDSHAKE_C0C1 
-        || m_connStatus == HANDSHAKE_C2)
+    else if(m_connState == HANDSHAKE_C0C1 
+        || m_connState == HANDSHAKE_C2)
     {
         ret = this->handleHandshake(buffer);
-        if(m_connStatus==HANDSHAKE_COMPLETE && buffer.readableBytes()>0)
+        if(m_connState==HANDSHAKE_COMPLETE && buffer.readableBytes()>0)
         {
             ret = handleChunk(buffer);
         }
@@ -58,7 +58,7 @@ bool RtmpConnection::handleHandshake(BufferReader& buffer)
     std::shared_ptr<char> res;
     uint32_t resSize = 0;
 
-    if(m_connStatus == HANDSHAKE_C0C1)
+    if(m_connState == HANDSHAKE_C0C1)
     {
         if(bufSize < 1537) //c0c1
         {           
@@ -66,7 +66,7 @@ bool RtmpConnection::handleHandshake(BufferReader& buffer)
         }
         else
         {
-            if(buf[0] != kRtmpVersion)
+            if(buf[0] != RTMP_VERSION)
             {
                return false; 
             }
@@ -75,7 +75,7 @@ bool RtmpConnection::handleHandshake(BufferReader& buffer)
             resSize = 1+ 1536 + 1536;
             res.reset(new char[resSize]); //S0 S1 S2      
             memset(res.get(), 0, 1537);
-            res.get()[0] = kRtmpVersion; 
+            res.get()[0] = RTMP_VERSION;
             
             // 填充随机数据
             std::random_device rd;
@@ -85,10 +85,10 @@ bool RtmpConnection::handleHandshake(BufferReader& buffer)
                 *p++ = rd();
             }
             memcpy(p, buf+1, 1536);
-            m_connStatus = HANDSHAKE_C2;
+            m_connState = HANDSHAKE_C2;
         }
     } 
-    else if(m_connStatus == HANDSHAKE_C2)
+    else if(m_connState == HANDSHAKE_C2)
     {
         if(bufSize < 1536) //c0c1
         {           
@@ -97,7 +97,7 @@ bool RtmpConnection::handleHandshake(BufferReader& buffer)
         else 
         {
             pos = 1536;            
-            m_connStatus = HANDSHAKE_COMPLETE;
+            m_connState = HANDSHAKE_COMPLETE;
         }
     }
     else 
@@ -116,133 +116,191 @@ bool RtmpConnection::handleHandshake(BufferReader& buffer)
 
 bool RtmpConnection::handleChunk(BufferReader& buffer)
 {
-    bool ret = true; 
-    do
-    {      
-        uint8_t *buf = (uint8_t*)buffer.peek();
-        uint32_t bufSize = buffer.readableBytes();
-        uint32_t bytesUsed = 0;
-        if(bufSize == 0)
-        {
-            break;
-        }
+	int ret = -1;
 
-        uint8_t flags = buf[bytesUsed];
-        bytesUsed += 1;        
-
-        uint8_t csid = flags & 0x3f; // chunk stream id
-        if(csid == 0) // csid [64, 319]
-        {         
-            if((bufSize-bytesUsed) < 2)
-                break;
-            csid += buf[bytesUsed] + 64;
-            bytesUsed += 1;
-        }
-        else if(csid == 1) // csid [64, 65599]
-        {
-            if((bufSize-bytesUsed) < 3)
-                break;
-            bytesUsed += buf[bytesUsed+1]*255 + buf[bytesUsed] + 64;
-            bytesUsed += 2;
-        }  
-
-        uint8_t fmt = flags >> 6; // message_header_type
-        if(fmt >= 4) 
-        {
-            return false;
-        }
-
-        uint32_t headerLen = kChunkMessageLen[fmt]; // basic_header + message_header 
-        if((bufSize-bytesUsed) < headerLen)
-        {
-            break;
-        }         
-
-        RtmpMessageHeader header;  
-		memset(&header, 0, sizeof(RtmpMessageHeader));
-        memcpy(&header, buf+bytesUsed, headerLen);
-        bytesUsed += headerLen;
-
-        auto& rtmpMsg = m_rtmpMsgs[csid];         
-        rtmpMsg.csid = csid;
-        
-        if (headerLen >= 7) // type 1
-        {    
-            uint32_t length = readUint24BE((char*)header.length);   
-            
-            if(rtmpMsg.length != length || rtmpMsg.data==nullptr)
-            {                
-                rtmpMsg.length = length;
-                rtmpMsg.data.reset(new char[rtmpMsg.length]);   
-            }            
-            rtmpMsg.index = 0;
-            rtmpMsg.typeId = header.typeId;
-        }
-                          
-        if (headerLen >= 11) // type 0
-        {
-			rtmpMsg.streamId = readUint24LE((char*)header.streamId);  
-        }
-       
-        if (headerLen >= 3) // type 2, 1, 0
-        {            
-            rtmpMsg.timestamp = readUint24BE((char*)header.timestamp);   
-			rtmpMsg.extTimestamp = readUint24BE((char*)header.timestamp);
-
-			if (rtmpMsg.timestamp >= 0xffffff) // extended timestamp
-			{
-				if ((bufSize - bytesUsed) < 4)
-				{
-					break;
-				}
-				rtmpMsg.extTimestamp = readUint32BE((char*)buf + bytesUsed);
-				bytesUsed += 4;
-			}
-        }                     
-           
-        uint32_t chunkSize = rtmpMsg.length - rtmpMsg.index;
-        if (chunkSize > m_inChunkSize)
-            chunkSize = m_inChunkSize;       
-        if((bufSize-bytesUsed)  < chunkSize)
-        {
-            break;
-        }
-
-        if(rtmpMsg.index + chunkSize > rtmpMsg.length)
-        {
-            return false;
-        }
-                
-		memcpy(rtmpMsg.data.get()+rtmpMsg.index, buf+bytesUsed, chunkSize);
-		bytesUsed += chunkSize;
-		rtmpMsg.index += chunkSize; 
-
-		if(rtmpMsg.extTimestamp > 0)
+	do
+	{
+		if (m_chunkParseState == PARSE_HEADER)
 		{
-			if (fmt == 0)
+			ret = parseChunkHeader(buffer);
+		}
+		else if (m_chunkParseState == PARSE_BODY)
+		{ 
+			ret = parseChunkBody(buffer);
+			if (ret >= 0 && m_chunkStreamId>=0)
 			{
-				rtmpMsg.clock = rtmpMsg.extTimestamp;
+				auto& rtmpMsg = m_rtmpMsgs[m_chunkStreamId];
+				if (rtmpMsg.index == rtmpMsg.length)
+				{
+					if (!handleMessage(rtmpMsg))
+					{
+						return false;
+					}
+					rtmpMsg.reset();
+				}
 			}
-			else
-			{
-				rtmpMsg.clock += rtmpMsg.extTimestamp;			
-			}	
-			rtmpMsg.extTimestamp = 0;
 		}
 
-		if(rtmpMsg.index > 0 && rtmpMsg.index == rtmpMsg.length)
-		{                           
-			if(!handleMessage(rtmpMsg))
-			{              
-				return false;
-			} 
-			rtmpMsg.reset();    
-		}        
+		if (ret == 0)
+		{
+			break;
+		}
+		else if (ret < 0)
+		{
+			return false;
+		}
 
-        buffer.retrieve(bytesUsed);  
-    } while(1);
-    
-    return ret;
+	} while (1);
+
+	return true;
+}
+
+int RtmpConnection::parseChunkHeader(BufferReader& buffer)
+{
+	uint8_t *buf = NULL;
+	uint32_t bufSize = 0, bytesUsed = 0;
+	buf = (uint8_t*)buffer.peek();
+	bufSize = buffer.readableBytes();
+
+	if (bufSize == 0)
+	{
+		return 0;
+	}
+
+	uint8_t flags = buf[bytesUsed];
+	bytesUsed += 1;
+
+	uint8_t csid = flags & 0x3f; // chunk stream id
+	if (csid == 0) // csid [64, 319]
+	{
+		if ((bufSize - bytesUsed) < 2)
+		{
+			return 0;
+		}
+
+		csid += buf[bytesUsed] + 64;
+		bytesUsed += 1;
+	}
+	else if (csid == 1) // csid [64, 65599]
+	{
+		if ((bufSize - bytesUsed) < 3)
+		{
+			return 0;
+		}
+		bytesUsed += buf[bytesUsed + 1] * 255 + buf[bytesUsed] + 64;
+		bytesUsed += 2;
+	}
+
+	uint8_t fmt = flags >> 6; // message_header_type
+	if (fmt >= 4)
+	{
+		return -1;
+	}
+
+	uint32_t headerLen = kChunkMessageLen[fmt]; // basic_header + message_header 
+	if ((bufSize - bytesUsed) < headerLen)
+	{
+		return 0;
+	}
+
+	RtmpMessageHeader header;
+	memset(&header, 0, sizeof(RtmpMessageHeader));
+	memcpy(&header, buf + bytesUsed, headerLen);
+	bytesUsed += headerLen;
+
+	auto& rtmpMsg = m_rtmpMsgs[csid];
+	m_chunkStreamId = rtmpMsg.csid = csid;
+
+	if (fmt == RTMP_CHUNK_TYPE_0 || fmt == RTMP_CHUNK_TYPE_1)
+	{
+		uint32_t length = readUint24BE((char*)header.length);
+
+		if (rtmpMsg.length != length || rtmpMsg.data == nullptr)
+		{
+			rtmpMsg.length = length;
+			rtmpMsg.data.reset(new char[rtmpMsg.length]);
+		}
+		rtmpMsg.index = 0;
+		rtmpMsg.typeId = header.typeId;
+	}
+
+	if (fmt == RTMP_CHUNK_TYPE_0)
+	{
+		rtmpMsg.streamId = readUint24LE((char*)header.streamId);
+	}
+
+	if (fmt == RTMP_CHUNK_TYPE_0 || fmt == RTMP_CHUNK_TYPE_1 || fmt == RTMP_CHUNK_TYPE_2)
+	{
+		rtmpMsg.timestamp = readUint24BE((char*)header.timestamp);
+		//rtmpMsg.extTimestamp = readUint24BE((char*)header.timestamp);
+
+		if (rtmpMsg.timestamp >= 0xffffff) // extended timestamp
+		{
+			if ((bufSize - bytesUsed) < 4)
+			{
+				return 0;
+			}
+			rtmpMsg.extTimestamp = readUint32BE((char*)buf + bytesUsed);
+			bytesUsed += 4;
+		}
+	}
+
+	//if (rtmpMsg.extTimestamp > 0)
+	//{
+	//	if (fmt == 0)
+	//	{
+	//		rtmpMsg.clock = rtmpMsg.extTimestamp;
+	//	}
+	//	else
+	//	{
+	//		rtmpMsg.clock += rtmpMsg.extTimestamp;
+	//	}
+	//	rtmpMsg.extTimestamp = 0;
+	//}
+
+	m_chunkParseState = PARSE_BODY;
+	buffer.retrieve(bytesUsed);
+	return bytesUsed;
+}
+
+int RtmpConnection::parseChunkBody(BufferReader& buffer)
+{
+	uint8_t *buf = NULL;
+	uint32_t bufSize = 0, bytesUsed = 0;
+	buf = (uint8_t*)buffer.peek();
+	bufSize = buffer.readableBytes();
+
+	if (bufSize == 0)
+	{
+		return 0;
+	}
+
+	if (m_chunkStreamId < 0)
+	{
+		return -1;
+	}
+
+	auto& rtmpMsg = m_rtmpMsgs[m_chunkStreamId];
+
+	uint32_t chunkSize = rtmpMsg.length - rtmpMsg.index;
+	if (chunkSize > m_inChunkSize)
+		chunkSize = m_inChunkSize;
+	if ((bufSize - bytesUsed) < chunkSize)
+	{
+		return 0;
+	}
+
+	if (rtmpMsg.index + chunkSize > rtmpMsg.length)
+	{
+		return -1;
+	}
+
+	memcpy(rtmpMsg.data.get() + rtmpMsg.index, buf + bytesUsed, chunkSize);
+	bytesUsed += chunkSize;
+	rtmpMsg.index += chunkSize;
+	m_chunkParseState = PARSE_HEADER;
+	buffer.retrieve(bytesUsed);
+	return bytesUsed;
 }
 
 bool RtmpConnection::handleMessage(RtmpMessage& rtmpMsg)
@@ -385,12 +443,32 @@ bool RtmpConnection::handleNotify(RtmpMessage& rtmpMsg)
 
 bool RtmpConnection::handleVideo(RtmpMessage rtmpMsg)
 {  
+	if (m_firstVideoFrame)
+	{
+		m_avcSequenceHeaderSize = rtmpMsg.length;
+		m_avcSequenceHeader.reset(new char[rtmpMsg.length]);
+		memcpy(m_avcSequenceHeader.get(), rtmpMsg.data.get(), rtmpMsg.length);
+		if (((rtmpMsg.data.get()[0] >> 4) & 0x0f) == 1)
+		{
+			m_firstVideoFrame = false;
+		}
+	}
+
+	if (rtmpMsg.timestamp == 0xffffff)
+	{
+		m_videoTimestamp += rtmpMsg.extTimestamp;
+	}
+	else
+	{
+		m_videoTimestamp += rtmpMsg.timestamp;
+	}
+	
     if(m_streamPath != "")
     {
         auto sessionPtr = m_rtmpServer->getSession(m_streamPath); 
         if(sessionPtr)
         {   
-            sessionPtr->sendMediaData(RTMP_VIDEO, rtmpMsg.clock, rtmpMsg.data, rtmpMsg.length);                  
+            sessionPtr->sendMediaData(RTMP_VIDEO, m_videoTimestamp, rtmpMsg.data, rtmpMsg.length);
         }  
     } 
     return true;
@@ -398,12 +476,29 @@ bool RtmpConnection::handleVideo(RtmpMessage rtmpMsg)
 
 bool RtmpConnection::handleAudio(RtmpMessage rtmpMsg)
 {
+	if (m_firstAudioFrame)
+	{
+		m_aacSequenceHeaderSize = rtmpMsg.length;
+		m_aacSequenceHeader.reset(new char[rtmpMsg.length]);
+		memcpy(m_aacSequenceHeader.get(), rtmpMsg.data.get(), rtmpMsg.length);
+		m_firstAudioFrame = false;
+	}
+
+	if (rtmpMsg.timestamp == 0xffffff)
+	{
+		m_audioTimestamp += rtmpMsg.extTimestamp;
+	}
+	else
+	{
+		m_audioTimestamp += rtmpMsg.timestamp;
+	}
+
     if(m_streamPath != "")
     {
         auto sessionPtr = m_rtmpServer->getSession(m_streamPath); 
         if(sessionPtr)
         {   
-           sessionPtr->sendMediaData(RTMP_AUDIO, rtmpMsg.clock, rtmpMsg.data, rtmpMsg.length);     
+           sessionPtr->sendMediaData(RTMP_AUDIO, m_audioTimestamp, rtmpMsg.data, rtmpMsg.length);
         }  
     } 
     
@@ -444,7 +539,7 @@ bool RtmpConnection::handleConnect()
     objects["objectEncoding"] = AmfObject(0.0);
     m_amfEnc.encodeObjects(objects);  
 
-    sendInvokeMessage(CHUNK_INVOKE_ID, m_amfEnc.data(), m_amfEnc.size());
+    sendInvokeMessage(RTMP_CHUNK_INVOKE_ID, m_amfEnc.data(), m_amfEnc.size());
     return true;
 }
 
@@ -457,7 +552,7 @@ bool RtmpConnection::handleCreateStream()
     m_amfEnc.encodeObjects(objects);
     m_amfEnc.encodeNumber(kStreamId);   
 
-    sendInvokeMessage(CHUNK_INVOKE_ID, m_amfEnc.data(), m_amfEnc.size());
+    sendInvokeMessage(RTMP_CHUNK_INVOKE_ID, m_amfEnc.data(), m_amfEnc.size());
     m_streamId = kStreamId;
     return true;
 }
@@ -480,7 +575,7 @@ bool RtmpConnection::handlePublish()
         objects["code"] = AmfObject(std::string("NetStream.Publish.BadName"));
         objects["description"] = AmfObject(std::string("Stream already publishing."));
     }
-    else if(m_connStatus == START_PUBLISH)
+    else if(m_connState == START_PUBLISH)
     {
         isError = true;
         objects["level"] = AmfObject(std::string("error"));
@@ -500,7 +595,7 @@ bool RtmpConnection::handlePublish()
     }
 
     m_amfEnc.encodeObjects(objects);     
-    sendInvokeMessage(CHUNK_INVOKE_ID, m_amfEnc.data(), m_amfEnc.size());
+    sendInvokeMessage(RTMP_CHUNK_INVOKE_ID, m_amfEnc.data(), m_amfEnc.size());
 
     if(isError)
     {
@@ -508,7 +603,7 @@ bool RtmpConnection::handlePublish()
     }
     else
     {
-        m_connStatus = START_PUBLISH;
+        m_connState = START_PUBLISH;
     }
 
     auto sessionPtr = m_rtmpServer->getSession(m_streamPath); 
@@ -532,7 +627,7 @@ bool RtmpConnection::handlePlay()
     objects["code"] = AmfObject(std::string("NetStream.Play.Reset"));
     objects["description"] = AmfObject(std::string("Resetting and playing stream."));
     m_amfEnc.encodeObjects(objects);   
-    if(!sendInvokeMessage(CHUNK_INVOKE_ID, m_amfEnc.data(), m_amfEnc.size()))
+    if(!sendInvokeMessage(RTMP_CHUNK_INVOKE_ID, m_amfEnc.data(), m_amfEnc.size()))
     {
         return false;
     }
@@ -546,7 +641,7 @@ bool RtmpConnection::handlePlay()
     objects["code"] = AmfObject(std::string("NetStream.Play.Start"));
     objects["description"] = AmfObject(std::string("Started playing."));   
     m_amfEnc.encodeObjects(objects);
-    if(!sendInvokeMessage(CHUNK_INVOKE_ID, m_amfEnc.data(), m_amfEnc.size()))
+    if(!sendInvokeMessage(RTMP_CHUNK_INVOKE_ID, m_amfEnc.data(), m_amfEnc.size()))
     {
         return false;
     }
@@ -555,22 +650,30 @@ bool RtmpConnection::handlePlay()
     m_amfEnc.encodeString("|RtmpSampleAccess", 17);
     m_amfEnc.encodeBoolean(true);
     m_amfEnc.encodeBoolean(true);
-    if(!sendNotifyMessage(CHUNK_DATA_ID, m_amfEnc.data(), m_amfEnc.size()))
+    if(!sendNotifyMessage(RTMP_CHUNK_DATA_ID, m_amfEnc.data(), m_amfEnc.size()))
     {
         return false;
     }
              
-    m_connStatus = START_PLAY; 
+    m_connState = START_PLAY; 
     
     auto sessionPtr = m_rtmpServer->getSession(m_streamPath); 
     if(sessionPtr)
     {   
         sessionPtr->addClient(shared_from_this());
+
         m_metaData = sessionPtr->getMetaData();
         if(m_metaData.size() > 0)
         {
             this->sendMetaData(m_metaData); 
         }
+
+		RtmpConnection *publisher = (RtmpConnection *)sessionPtr->getPublisher().get();
+		if (publisher != nullptr)
+		{
+			this->sendMediaData(RTMP_VIDEO, 0, publisher->m_avcSequenceHeader, publisher->m_avcSequenceHeaderSize);
+			this->sendMediaData(RTMP_AUDIO, 0, publisher->m_aacSequenceHeader, publisher->m_aacSequenceHeaderSize);
+		}
     }  
     
     return true;
@@ -613,7 +716,7 @@ bool RtmpConnection::sendMetaData(AmfObjects& metaData)
     m_amfEnc.reset(); 
     m_amfEnc.encodeString("onMetaData", 10);
     m_amfEnc.encodeECMA(metaData);
-    if(!sendNotifyMessage(CHUNK_DATA_ID, m_amfEnc.data(), m_amfEnc.size()))
+    if(!sendNotifyMessage(RTMP_CHUNK_DATA_ID, m_amfEnc.data(), m_amfEnc.size()))
     {
         return false;
     }
@@ -630,7 +733,7 @@ void RtmpConnection::setPeerBandwidth()
     rtmpMsg.typeId = RTMP_BANDWIDTH_SIZE;
     rtmpMsg.data = data;
     rtmpMsg.length = 5;
-    sendRtmpChunks(CHUNK_CONTROL_ID, rtmpMsg); 
+    sendRtmpChunks(RTMP_CHUNK_CONTROL_ID, rtmpMsg);
 }
 
 void RtmpConnection::sendAcknowledgement()
@@ -642,7 +745,7 @@ void RtmpConnection::sendAcknowledgement()
     rtmpMsg.typeId = RTMP_ACK_SIZE;
     rtmpMsg.data = data;
     rtmpMsg.length = 4;
-    sendRtmpChunks(CHUNK_CONTROL_ID, rtmpMsg); 
+    sendRtmpChunks(RTMP_CHUNK_CONTROL_ID, rtmpMsg);
 }
 
 void RtmpConnection::setChunkSize()
@@ -656,7 +759,7 @@ void RtmpConnection::setChunkSize()
     rtmpMsg.typeId = RTMP_SET_CHUNK_SIZE;
     rtmpMsg.data = data;
     rtmpMsg.length = 4;
-    sendRtmpChunks(CHUNK_CONTROL_ID, rtmpMsg);  
+    sendRtmpChunks(RTMP_CHUNK_CONTROL_ID, rtmpMsg);
 }
 
 bool RtmpConnection::sendInvokeMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payloadSize)
@@ -693,7 +796,7 @@ bool RtmpConnection::sendNotifyMessage(uint32_t csid, std::shared_ptr<char> payl
     return true;
 }
 
-bool RtmpConnection::sendMediaData(uint8_t type, uint32_t ts, std::shared_ptr<char> payload, uint32_t payloadSize)
+bool RtmpConnection::sendMediaData(uint8_t type, uint64_t timestamp, std::shared_ptr<char> payload, uint32_t payloadSize)
 {
     if(this->isClosed())
     {
@@ -716,18 +819,18 @@ bool RtmpConnection::sendMediaData(uint8_t type, uint32_t ts, std::shared_ptr<ch
 
     RtmpMessage rtmpMsg;
     rtmpMsg.typeId = type;
-    rtmpMsg.clock = ts;
+    rtmpMsg.clock = timestamp;
     rtmpMsg.streamId = m_streamId;
     rtmpMsg.data = payload;
     rtmpMsg.length = payloadSize; 
     
     if(type == RTMP_AUDIO)
     {
-        sendRtmpChunks(CHUNK_AUDIO_ID, rtmpMsg); 
+        sendRtmpChunks(RTMP_CHUNK_AUDIO_ID, rtmpMsg);
     }
     else if(type == RTMP_VIDEO)
     {
-        sendRtmpChunks(CHUNK_VIDEO_ID, rtmpMsg); 
+        sendRtmpChunks(RTMP_CHUNK_VIDEO_ID, rtmpMsg);
     }
      
     return true;

@@ -39,14 +39,14 @@ void RtmpSession::sendMetaData(AmfObjects& metaData)
     }
 } 
 
-void RtmpSession::sendMediaData(uint8_t type, uint32_t ts, std::shared_ptr<char> data, uint32_t size)
+void RtmpSession::sendMediaData(uint8_t type, uint64_t timestamp, std::shared_ptr<char> data, uint32_t size)
 {
     std::lock_guard<std::mutex> lock(m_mutex);    
-    if(m_clients.size() <= 1)
+    if(m_clients.size() <= 1 || size == 0)
     {
         return ;
     }
-    
+
     for (auto iter = m_clients.begin(); iter != m_clients.end(); )
     {
         auto conn = iter->second.lock(); 
@@ -59,7 +59,7 @@ void RtmpSession::sendMediaData(uint8_t type, uint32_t ts, std::shared_ptr<char>
             RtmpConnection* player = (RtmpConnection*)conn.get();
             if(player->isPlayer())
             {               
-                player->sendMediaData(type, ts, data, size);               
+                player->sendMediaData(type, timestamp, data, size);
             }
 			iter++;
         }
@@ -74,6 +74,7 @@ void RtmpSession::addClient(std::shared_ptr<TcpConnection> conn)
     m_clients[conn->fd()] = conn;   
     if(((RtmpConnection*)conn.get())->isPublisher())
     {
+		m_publisher = conn;
         m_hasPublisher = true;
     }
 	return;
@@ -95,4 +96,8 @@ int RtmpSession::getClients()
     return m_clients.size();
 }
 
-
+std::shared_ptr<TcpConnection> RtmpSession::getPublisher()
+{
+	std::lock_guard<std::mutex> lock(m_mutex);
+	return m_publisher.lock();
+}
