@@ -139,19 +139,15 @@ private:
     uint32_t m_streamId = 0;
 	uint64_t m_timestamp = 0;
 
-	bool m_isEnabledGopCache = false;
 	bool hasKeyFrame = false;
-	std::shared_ptr<char> m_gopCache;
 	std::shared_ptr<char> m_avcSequenceHeader;
 	std::shared_ptr<char> m_aacSequenceHeader;
-	uint32_t m_gopCacheSize = 0;
-	uint64_t m_gopTimestamp = 0;
 	uint32_t m_avcSequenceHeaderSize = 0;
 	uint32_t m_aacSequenceHeaderSize = 0;
     
     const uint32_t kPeerBandwidth       = 5000000;
     const uint32_t kAcknowledgementSize = 5000000;
-    const uint32_t kMaxChunkSize        = 128;
+    const uint32_t kMaxChunkSize        = 60000;
     const uint32_t kStreamId            = 1;
 	const int kChunkMessageLen[4] = { 11, 7, 3, 0 };
 };

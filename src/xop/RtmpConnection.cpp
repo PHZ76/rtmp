@@ -454,13 +454,7 @@ bool RtmpConnection::handleVideo(RtmpMessage rtmpMsg)
 	{
 		if (payload[1] == 1)
 		{
-			if (m_isEnabledGopCache)
-			{
-				m_gopTimestamp = rtmpMsg.timestamp;
-				m_gopCacheSize = rtmpMsg.length;
-				m_gopCache.reset(new char[rtmpMsg.length]);
-				memcpy(m_gopCache.get(), rtmpMsg.payload.get(), rtmpMsg.length);
-			}
+			// key frame , gop cache?
 		}
 		else if (payload[1] == 0)
 		{
@@ -693,10 +687,6 @@ bool RtmpConnection::handlePlay()
 		{
 			this->sendVideoData(0, publisher->m_avcSequenceHeader, publisher->m_avcSequenceHeaderSize);
 			this->sendAudioData(0, publisher->m_aacSequenceHeader, publisher->m_aacSequenceHeaderSize);
-			if (m_isEnabledGopCache)
-			{
-				this->sendVideoData(m_gopTimestamp, publisher->m_gopCache, publisher->m_gopCacheSize);
-			}
 		}
     }  
     
