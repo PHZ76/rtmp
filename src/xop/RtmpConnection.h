@@ -24,7 +24,6 @@ struct RtmpMessageHeader
 struct RtmpMessage 
 {
     uint32_t timestamp = 0;
-    uint32_t timestampDelta = 0;
     uint32_t length = 0;
     uint8_t  typeId = 0;
     uint32_t streamId = 0;
@@ -37,7 +36,9 @@ struct RtmpMessage
 
     void reset()
     {        
-        index = 0;       
+        index = 0;    
+		timestamp = 0;
+		extTimestamp = 0;
     }
 };
 
@@ -113,6 +114,8 @@ private:
     bool sendNotifyMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payloadSize);   
     bool sendMetaData(AmfObjects& metaData);
     bool sendMediaData(uint8_t type, uint64_t timestamp, std::shared_ptr<char> payload, uint32_t payloadSize);
+	bool sendVideoData(uint64_t timestamp, std::shared_ptr<char> payload, uint32_t payloadSize);
+	bool sendAudioData(uint64_t timestamp, std::shared_ptr<char> payload, uint32_t payloadSize);
     void sendRtmpChunks(uint32_t csid, RtmpMessage& rtmpMsg);
     int createChunkBasicHeader(uint8_t fmt, uint32_t csid, char* buf);
     int createChunkMessageHeader(uint8_t fmt, RtmpMessage& rtmpMsg, char* buf);   
@@ -121,32 +124,34 @@ private:
     TaskScheduler *m_taskScheduler;
     std::shared_ptr<xop::Channel> m_channelPtr;
 
+	std::string m_app;
+	std::string m_streamName;
+	std::string m_streamPath;
+	AmfObjects m_metaData;
+	AmfDecoder m_amfDec;
+	AmfEncoder m_amfEnc;
+	std::map<int, RtmpMessage> m_rtmpMsgs;
     ConnectionState m_connState = HANDSHAKE_C0C1;
 	ChunkParseState m_chunkParseState = PARSE_HEADER;
 	int m_chunkStreamId = 0;
-
 	uint32_t m_inChunkSize = 128;
     uint32_t m_outChunkSize = 128;
     uint32_t m_streamId = 0;
-	uint64_t m_videoTimestamp = 0;
-	uint64_t m_audioTimestamp = 0;
+	uint64_t m_timestamp = 0;
+
+	bool m_isEnabledGopCache = false;
+	bool hasKeyFrame = false;
+	std::shared_ptr<char> m_gopCache;
 	std::shared_ptr<char> m_avcSequenceHeader;
 	std::shared_ptr<char> m_aacSequenceHeader;
+	uint32_t m_gopCacheSize = 0;
+	uint64_t m_gopTimestamp = 0;
 	uint32_t m_avcSequenceHeaderSize = 0;
 	uint32_t m_aacSequenceHeaderSize = 0;
-
-    bool hasKeyFrame = false; 
-    AmfDecoder m_amfDec;
-    AmfEncoder m_amfEnc;
-    std::string m_app;
-    std::string m_streamName;
-    std::string m_streamPath;
-    AmfObjects m_metaData;
-    std::map<int, RtmpMessage> m_rtmpMsgs;  
-
+    
     const uint32_t kPeerBandwidth       = 5000000;
     const uint32_t kAcknowledgementSize = 5000000;
-    const uint32_t kMaxChunkSize        = 60000;
+    const uint32_t kMaxChunkSize        = 128;
     const uint32_t kStreamId            = 1;
 	const int kChunkMessageLen[4] = { 11, 7, 3, 0 };
 };
