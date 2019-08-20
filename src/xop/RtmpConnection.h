@@ -33,7 +33,7 @@ struct RtmpMessage
     uint8_t  csid = 0;
     uint64_t clock = 0;    
     uint32_t index = 0;
-    std::shared_ptr<char> data = nullptr;
+    std::shared_ptr<char> payload = nullptr;
 
     void reset()
     {        
@@ -130,8 +130,6 @@ private:
     uint32_t m_streamId = 0;
 	uint64_t m_videoTimestamp = 0;
 	uint64_t m_audioTimestamp = 0;
-	bool m_firstAudioFrame = true;
-	bool m_firstVideoFrame = true;
 	std::shared_ptr<char> m_avcSequenceHeader;
 	std::shared_ptr<char> m_aacSequenceHeader;
 	uint32_t m_avcSequenceHeaderSize = 0;
@@ -150,7 +148,6 @@ private:
     const uint32_t kAcknowledgementSize = 5000000;
     const uint32_t kMaxChunkSize        = 60000;
     const uint32_t kStreamId            = 1;
-	const int kRtmpVersion = 0x03;
 	const int kChunkMessageLen[4] = { 11, 7, 3, 0 };
 };
       
