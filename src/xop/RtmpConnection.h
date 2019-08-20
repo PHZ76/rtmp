@@ -28,6 +28,8 @@ struct RtmpMessage
     uint8_t  typeId = 0;
     uint32_t streamId = 0;
     uint32_t extTimestamp = 0;   
+	
+	uint64_t _timestamp = 0;
 
     uint8_t  csid = 0;
     uint64_t clock = 0;    
@@ -96,8 +98,8 @@ private:
     bool handleMessage(RtmpMessage& rtmpMsg);
     bool handleInvoke(RtmpMessage& rtmpMsg);
     bool handleNotify(RtmpMessage& rtmpMsg);
-    bool handleVideo(RtmpMessage rtmpMsg);
-    bool handleAudio(RtmpMessage rtmpMsg);
+    bool handleVideo(RtmpMessage& rtmpMsg);
+    bool handleAudio(RtmpMessage& rtmpMsg);
 
     bool handleConnect();
     bool handleCreateStream();
@@ -137,8 +139,6 @@ private:
 	uint32_t m_inChunkSize = 128;
     uint32_t m_outChunkSize = 128;
     uint32_t m_streamId = 0;
-	uint64_t m_timestamp = 0;
-
 	bool hasKeyFrame = false;
 	std::shared_ptr<char> m_avcSequenceHeader;
 	std::shared_ptr<char> m_aacSequenceHeader;

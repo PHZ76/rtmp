@@ -132,6 +132,15 @@ bool RtmpConnection::handleChunk(BufferReader& buffer)
 				auto& rtmpMsg = m_rtmpMsgs[m_chunkStreamId];
 				if (rtmpMsg.index == rtmpMsg.length)
 				{
+					if (rtmpMsg.timestamp == 0xffffff)
+					{
+						rtmpMsg._timestamp += rtmpMsg.extTimestamp;
+					}
+					else
+					{
+						rtmpMsg._timestamp += rtmpMsg.timestamp;
+					}
+
 					if (!handleMessage(rtmpMsg))
 					{
 						return false;
@@ -243,7 +252,7 @@ int RtmpConnection::parseChunkHeader(BufferReader& buffer)
 			extTimestamp = readUint32BE((char*)buf + bytesUsed);
 			bytesUsed += 4;
 		}
-
+		
 		if (fmt == 0)
 		{
 			rtmpMsg.timestamp = timestamp;
@@ -445,7 +454,7 @@ bool RtmpConnection::handleNotify(RtmpMessage& rtmpMsg)
     return true;
 }
 
-bool RtmpConnection::handleVideo(RtmpMessage rtmpMsg)
+bool RtmpConnection::handleVideo(RtmpMessage& rtmpMsg)
 {  
 	uint8_t *payload = (uint8_t *)rtmpMsg.payload.get();
 	uint8_t frameType = (payload[0] >> 4) & 0x0f;
@@ -464,27 +473,18 @@ bool RtmpConnection::handleVideo(RtmpMessage rtmpMsg)
 		}
 	}
 
-	if (rtmpMsg.timestamp == 0xffffff)
-	{
-		m_timestamp += rtmpMsg.extTimestamp;
-	}
-	else
-	{
-		m_timestamp += rtmpMsg.timestamp;
-	}
-
     if(m_streamPath != "")
     {
         auto sessionPtr = m_rtmpServer->getSession(m_streamPath); 
         if(sessionPtr)
         {   
-            sessionPtr->sendMediaData(RTMP_VIDEO, m_timestamp, rtmpMsg.payload, rtmpMsg.length);
+            sessionPtr->sendMediaData(RTMP_VIDEO, rtmpMsg._timestamp, rtmpMsg.payload, rtmpMsg.length);
         }  
     } 
     return true;
 }
 
-bool RtmpConnection::handleAudio(RtmpMessage rtmpMsg)
+bool RtmpConnection::handleAudio(RtmpMessage& rtmpMsg)
 {
 	uint8_t *payload = (uint8_t *)rtmpMsg.payload.get();
 	uint8_t soundFormat = (payload[0] >> 4) & 0x0f;
@@ -498,21 +498,12 @@ bool RtmpConnection::handleAudio(RtmpMessage rtmpMsg)
 		memcpy(m_aacSequenceHeader.get(), rtmpMsg.payload.get(), rtmpMsg.length);
 	}
 
-	if (rtmpMsg.timestamp == 0xffffff)
-	{
-		m_timestamp += rtmpMsg.extTimestamp;
-	}
-	else
-	{
-		m_timestamp += rtmpMsg.timestamp;
-	}
-
     if(m_streamPath != "")
     {
         auto sessionPtr = m_rtmpServer->getSession(m_streamPath); 
         if(sessionPtr)
         {   
-           sessionPtr->sendMediaData(RTMP_AUDIO, m_timestamp, rtmpMsg.payload, rtmpMsg.length);
+           sessionPtr->sendMediaData(RTMP_AUDIO, rtmpMsg._timestamp, rtmpMsg.payload, rtmpMsg.length);
         }  
     } 
     
