@@ -709,7 +709,6 @@ bool RtmpConnection::handlePlay()
 		{
 			this->sendVideoData(0, publisher->m_avcSequenceHeader, publisher->m_avcSequenceHeaderSize);
 			this->sendAudioData(0, publisher->m_aacSequenceHeader, publisher->m_aacSequenceHeaderSize);
-			printf("send gop size:%u \n", publisher->m_gopCache.size());
 
 			if (m_enableGopCache)
 			{
