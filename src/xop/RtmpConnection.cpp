@@ -129,7 +129,7 @@ bool RtmpConnection::handleChunk(BufferReader& buffer)
 			ret = parseChunkBody(buffer);
 			if (ret >= 0 && m_chunkStreamId>=0)
 			{
-				auto& rtmpMsg = m_rtmpMsgs[m_chunkStreamId];
+				auto& rtmpMsg = m_rtmpMessasges[m_chunkStreamId];
 				if (rtmpMsg.index == rtmpMsg.length)
 				{
 					if (rtmpMsg.timestamp == 0xffffff)
@@ -218,7 +218,7 @@ int RtmpConnection::parseChunkHeader(BufferReader& buffer)
 	memcpy(&header, buf + bytesUsed, headerLen);
 	bytesUsed += headerLen;
 
-	auto& rtmpMsg = m_rtmpMsgs[csid];
+	auto& rtmpMsg = m_rtmpMessasges[csid];
 	m_chunkStreamId = rtmpMsg.csid = csid;
 
 	if (fmt == RTMP_CHUNK_TYPE_0 || fmt == RTMP_CHUNK_TYPE_1)
@@ -293,7 +293,7 @@ int RtmpConnection::parseChunkBody(BufferReader& buffer)
 		return -1;
 	}
 
-	auto& rtmpMsg = m_rtmpMsgs[m_chunkStreamId];
+	auto& rtmpMsg = m_rtmpMessasges[m_chunkStreamId];
 
 	uint32_t chunkSize = rtmpMsg.length - rtmpMsg.index;
 	if (chunkSize > m_inChunkSize)
@@ -463,13 +463,33 @@ bool RtmpConnection::handleVideo(RtmpMessage& rtmpMsg)
 	{
 		if (payload[1] == 1)
 		{
-			// key frame , gop cache?
+			m_gopCache.clear();
+			if (m_enableGopCache)
+			{
+				auto& keyFrame = m_gopCache[rtmpMsg._timestamp];
+				keyFrame.codecId = RTMP_CODEC_ID_H264;
+				keyFrame = rtmpMsg;
+				keyFrame.payload.reset(new char[rtmpMsg.length]);
+				memcpy(keyFrame.payload.get(), rtmpMsg.payload.get(), rtmpMsg.length);
+			}
 		}
 		else if (payload[1] == 0)
 		{
+			m_gopCache.clear();
 			m_avcSequenceHeaderSize = rtmpMsg.length;
 			m_avcSequenceHeader.reset(new char[rtmpMsg.length]);
 			memcpy(m_avcSequenceHeader.get(), rtmpMsg.payload.get(), rtmpMsg.length);
+		}		
+	}
+	else if (codecId == RTMP_CODEC_ID_H264)
+	{
+		if (m_enableGopCache && m_gopCache.size() >= 1)
+		{
+			auto& keyFrame = m_gopCache[rtmpMsg._timestamp];
+			keyFrame.codecId = RTMP_CODEC_ID_H264;
+			keyFrame = rtmpMsg;
+			keyFrame.payload.reset(new char[rtmpMsg.length]);
+			memcpy(keyFrame.payload.get(), rtmpMsg.payload.get(), rtmpMsg.length);
 		}
 	}
 
@@ -491,11 +511,22 @@ bool RtmpConnection::handleAudio(RtmpMessage& rtmpMsg)
 	uint8_t soundSize = (payload[0] >> 1) & 0x01;
 	uint8_t soundRate = (payload[0] >> 2) & 0x03;
 
-	if (soundFormat == RTMP_CODEC_ID_ACC && payload[1] == 0)
+	if (soundFormat == RTMP_CODEC_ID_AAC && payload[1] == 0)
 	{
 		m_aacSequenceHeaderSize = rtmpMsg.length;
 		m_aacSequenceHeader.reset(new char[rtmpMsg.length]);
 		memcpy(m_aacSequenceHeader.get(), rtmpMsg.payload.get(), rtmpMsg.length);
+	}
+	else if (soundFormat == RTMP_CODEC_ID_AAC)
+	{
+		if (m_enableGopCache && m_gopCache.size() >= 1)
+		{
+			auto& keyFrame = m_gopCache[rtmpMsg._timestamp];
+			keyFrame.codecId = RTMP_CODEC_ID_AAC;
+			keyFrame = rtmpMsg;
+			keyFrame.payload.reset(new char[rtmpMsg.length]);
+			memcpy(keyFrame.payload.get(), rtmpMsg.payload.get(), rtmpMsg.length);
+		}
 	}
 
     if(m_streamPath != "")
@@ -678,6 +709,25 @@ bool RtmpConnection::handlePlay()
 		{
 			this->sendVideoData(0, publisher->m_avcSequenceHeader, publisher->m_avcSequenceHeaderSize);
 			this->sendAudioData(0, publisher->m_aacSequenceHeader, publisher->m_aacSequenceHeaderSize);
+			printf("send gop size:%u \n", publisher->m_gopCache.size());
+
+			if (m_enableGopCache)
+			{
+				if (publisher->m_gopCache.size() >= 2)
+				{
+					for (auto iter : publisher->m_gopCache)
+					{
+						if (iter.second.codecId == RTMP_CODEC_ID_H264)
+						{
+							this->sendVideoData(iter.first, iter.second.payload, iter.second.length);
+						}
+						else if (iter.second.codecId == RTMP_CODEC_ID_AAC)
+						{
+							this->sendAudioData(iter.first, iter.second.payload, iter.second.length);
+						}					
+					}
+				}
+			}
 		}
     }  
     
@@ -705,7 +755,7 @@ bool RtmpConnection::handDeleteStream()
             m_rtmpServer->removeSession(m_streamPath);
         }
         
-        m_rtmpMsgs.clear();
+        m_rtmpMessasges.clear();
     }
 
 	return true;

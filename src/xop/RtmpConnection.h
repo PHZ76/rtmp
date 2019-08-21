@@ -30,6 +30,7 @@ struct RtmpMessage
     uint32_t extTimestamp = 0;   
 	
 	uint64_t _timestamp = 0;
+	uint8_t  codecId = 0;
 
     uint8_t  csid = 0;
     uint64_t clock = 0;    
@@ -122,9 +123,9 @@ private:
     int createChunkBasicHeader(uint8_t fmt, uint32_t csid, char* buf);
     int createChunkMessageHeader(uint8_t fmt, RtmpMessage& rtmpMsg, char* buf);   
 
-    RtmpServer *m_rtmpServer;
-    TaskScheduler *m_taskScheduler;
-    std::shared_ptr<xop::Channel> m_channelPtr;
+	RtmpServer *m_rtmpServer;
+	TaskScheduler *m_taskScheduler;
+	std::shared_ptr<xop::Channel> m_channelPtr;
 
 	std::string m_app;
 	std::string m_streamName;
@@ -132,23 +133,26 @@ private:
 	AmfObjects m_metaData;
 	AmfDecoder m_amfDec;
 	AmfEncoder m_amfEnc;
-	std::map<int, RtmpMessage> m_rtmpMsgs;
-    ConnectionState m_connState = HANDSHAKE_C0C1;
+	std::map<int, RtmpMessage> m_rtmpMessasges;
+	ConnectionState m_connState = HANDSHAKE_C0C1;
 	ChunkParseState m_chunkParseState = PARSE_HEADER;
 	int m_chunkStreamId = 0;
 	uint32_t m_inChunkSize = 128;
-    uint32_t m_outChunkSize = 128;
-    uint32_t m_streamId = 0;
+	uint32_t m_outChunkSize = 128;
+	uint32_t m_streamId = 0;
 	bool hasKeyFrame = false;
+	bool m_enableGopCache = false;
+	std::map<uint64_t, RtmpMessage> m_gopCache;
 	std::shared_ptr<char> m_avcSequenceHeader;
 	std::shared_ptr<char> m_aacSequenceHeader;
 	uint32_t m_avcSequenceHeaderSize = 0;
 	uint32_t m_aacSequenceHeaderSize = 0;
     
-    const uint32_t kPeerBandwidth       = 5000000;
-    const uint32_t kAcknowledgementSize = 5000000;
-    const uint32_t kMaxChunkSize        = 60000;
-    const uint32_t kStreamId            = 1;
+	const uint32_t kPeerBandwidth       = 5000000;
+	const uint32_t kAcknowledgementSize = 5000000;
+	const uint32_t kMaxChunkSize        = 60000;
+	const uint32_t kStreamId            = 1;
+	const uint32_t kMaxGopLen           = 600;
 	const int kChunkMessageLen[4] = { 11, 7, 3, 0 };
 };
       

@@ -28,7 +28,7 @@
 #define RTMP_CHUNK_DATA_ID     6
 
 #define RTMP_CODEC_ID_H264     7
-#define RTMP_CODEC_ID_ACC      10
+#define RTMP_CODEC_ID_AAC      10
 #define RTMP_CODEC_ID_G711A    7
 #define RTMP_CODEC_ID_G711U    8
 
