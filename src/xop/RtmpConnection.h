@@ -32,8 +32,7 @@ struct RtmpMessage
 	uint64_t _timestamp = 0;
 	uint8_t  codecId = 0;
 
-    uint8_t  csid = 0;
-    uint64_t clock = 0;    
+    uint8_t  csid = 0; 
     uint32_t index = 0;
     std::shared_ptr<char> payload = nullptr;
 
@@ -141,7 +140,7 @@ private:
 	uint32_t m_outChunkSize = 128;
 	uint32_t m_streamId = 0;
 	bool hasKeyFrame = false;
-	bool m_enableGopCache = false;
+	bool m_enableGopCache = true;
 	std::map<uint64_t, RtmpMessage> m_gopCache;
 	std::shared_ptr<char> m_avcSequenceHeader;
 	std::shared_ptr<char> m_aacSequenceHeader;
@@ -152,7 +151,7 @@ private:
 	const uint32_t kAcknowledgementSize = 5000000;
 	const uint32_t kMaxChunkSize        = 60000;
 	const uint32_t kStreamId            = 1;
-	const uint32_t kMaxGopLen           = 600;
+	const uint32_t kMaxGopLen           = 2000;
 	const int kChunkMessageLen[4] = { 11, 7, 3, 0 };
 };
       

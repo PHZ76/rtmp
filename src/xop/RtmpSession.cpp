@@ -82,12 +82,12 @@ void RtmpSession::addClient(std::shared_ptr<TcpConnection> conn)
 
 void RtmpSession::removeClient(std::shared_ptr<TcpConnection> conn)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_clients.erase(conn->fd());
+    std::lock_guard<std::mutex> lock(m_mutex);    
     if(((RtmpConnection*)conn.get())->isPublisher())
     {
         m_hasPublisher = false;
     }
+	m_clients.erase(conn->fd());
 }
 
 int RtmpSession::getClients()

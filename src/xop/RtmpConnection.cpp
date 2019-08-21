@@ -462,13 +462,13 @@ bool RtmpConnection::handleVideo(RtmpMessage& rtmpMsg)
 	if (frameType == 1 && codecId == RTMP_CODEC_ID_H264)
 	{
 		if (payload[1] == 1)
-		{
-			m_gopCache.clear();
+		{			
 			if (m_enableGopCache)
 			{
-				auto& keyFrame = m_gopCache[rtmpMsg._timestamp];
-				keyFrame.codecId = RTMP_CODEC_ID_H264;
+				m_gopCache.clear();
+				auto& keyFrame = m_gopCache[rtmpMsg._timestamp];				
 				keyFrame = rtmpMsg;
+				keyFrame.codecId = RTMP_CODEC_ID_H264;
 				keyFrame.payload.reset(new char[rtmpMsg.length]);
 				memcpy(keyFrame.payload.get(), rtmpMsg.payload.get(), rtmpMsg.length);
 			}
@@ -483,11 +483,11 @@ bool RtmpConnection::handleVideo(RtmpMessage& rtmpMsg)
 	}
 	else if (codecId == RTMP_CODEC_ID_H264)
 	{
-		if (m_enableGopCache && m_gopCache.size() >= 1)
+		if (m_enableGopCache && m_gopCache.size() >= 1 && m_gopCache.size() < kMaxGopLen)
 		{
-			auto& frame = m_gopCache[rtmpMsg._timestamp];
-			frame.codecId = RTMP_CODEC_ID_H264;
+			auto& frame = m_gopCache[rtmpMsg._timestamp];			
 			frame = rtmpMsg;
+			frame.codecId = RTMP_CODEC_ID_H264;
 			frame.payload.reset(new char[rtmpMsg.length]);
 			memcpy(frame.payload.get(), rtmpMsg.payload.get(), rtmpMsg.length);
 		}
@@ -519,13 +519,16 @@ bool RtmpConnection::handleAudio(RtmpMessage& rtmpMsg)
 	}
 	else if (soundFormat == RTMP_CODEC_ID_AAC)
 	{
-		if (m_enableGopCache && m_gopCache.size() >= 1)
+		if (m_enableGopCache && m_gopCache.size() >= 2 && m_gopCache.size() < kMaxGopLen)
 		{
-			auto& frame = m_gopCache[rtmpMsg._timestamp];
-			frame.codecId = RTMP_CODEC_ID_AAC;
-			frame = rtmpMsg;
-			frame.payload.reset(new char[rtmpMsg.length]);
-			memcpy(frame.payload.get(), rtmpMsg.payload.get(), rtmpMsg.length);
+			if (rtmpMsg._timestamp > 0)
+			{
+				auto& frame = m_gopCache[rtmpMsg._timestamp];
+				frame = rtmpMsg;
+				frame.codecId = RTMP_CODEC_ID_AAC;
+				frame.payload.reset(new char[rtmpMsg.length]);
+				memcpy(frame.payload.get(), rtmpMsg.payload.get(), rtmpMsg.length);
+			}
 		}
 	}
 
@@ -892,7 +895,7 @@ bool RtmpConnection::sendVideoData(uint64_t timestamp, std::shared_ptr<char> pay
 	
 	RtmpMessage rtmpMsg;
 	rtmpMsg.typeId = RTMP_VIDEO;
-	rtmpMsg.clock = timestamp;
+	rtmpMsg._timestamp = timestamp;
 	rtmpMsg.streamId = m_streamId;
 	rtmpMsg.payload = payload;
 	rtmpMsg.length = payloadSize;
@@ -909,7 +912,7 @@ bool RtmpConnection::sendAudioData(uint64_t timestamp, std::shared_ptr<char> pay
 
 	RtmpMessage rtmpMsg;
 	rtmpMsg.typeId = RTMP_AUDIO;
-	rtmpMsg.clock = timestamp;
+	rtmpMsg._timestamp = timestamp;
 	rtmpMsg.streamId = m_streamId;
 	rtmpMsg.payload = payload;
 	rtmpMsg.length = payloadSize;
@@ -926,14 +929,15 @@ void RtmpConnection::sendRtmpChunks(uint32_t csid, RtmpMessage& rtmpMsg)
 
     bufferOffset += this->createChunkBasicHeader(0, csid, buffer + bufferOffset); //first chunk
     bufferOffset += this->createChunkMessageHeader(0, rtmpMsg, buffer + bufferOffset);
-    if(rtmpMsg.clock >= 0xffffff)
+    if(rtmpMsg._timestamp >= 0xffffff)
     {
-        writeUint32BE((char*)buffer + bufferOffset, rtmpMsg.clock);
+        writeUint32BE((char*)buffer + bufferOffset, rtmpMsg._timestamp);
         bufferOffset += 4;
     }
-
+	int a = 0, p = rtmpMsg.length;
     while(rtmpMsg.length > 0)
     {
+		a++;
         if(rtmpMsg.length > m_outChunkSize)
         {
             memcpy(buffer+bufferOffset, rtmpMsg.payload.get()+payloadOffset, m_outChunkSize);         
@@ -942,9 +946,9 @@ void RtmpConnection::sendRtmpChunks(uint32_t csid, RtmpMessage& rtmpMsg)
             rtmpMsg.length -= m_outChunkSize;
             
             bufferOffset += this->createChunkBasicHeader(3, csid, buffer + bufferOffset);
-            if(rtmpMsg.clock >= 0xffffff)
+            if(rtmpMsg._timestamp >= 0xffffff)
             {
-                writeUint32BE(buffer + bufferOffset, rtmpMsg.clock);
+                writeUint32BE(buffer + bufferOffset, rtmpMsg._timestamp);
                 bufferOffset += 4;
             }
         }
@@ -987,9 +991,9 @@ int RtmpConnection::createChunkMessageHeader(uint8_t fmt, RtmpMessage& rtmpMsg, 
     int len = 0;    
     if (fmt <= 2) 
     {
-        if(rtmpMsg.clock < 0xffffff)
+        if(rtmpMsg._timestamp < 0xffffff)
         {
-           writeUint24BE((char*)buf, rtmpMsg.clock);    
+           writeUint24BE((char*)buf, rtmpMsg._timestamp);
         }
         else
         {
