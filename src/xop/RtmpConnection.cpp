@@ -485,11 +485,11 @@ bool RtmpConnection::handleVideo(RtmpMessage& rtmpMsg)
 	{
 		if (m_enableGopCache && m_gopCache.size() >= 1)
 		{
-			auto& keyFrame = m_gopCache[rtmpMsg._timestamp];
-			keyFrame.codecId = RTMP_CODEC_ID_H264;
-			keyFrame = rtmpMsg;
-			keyFrame.payload.reset(new char[rtmpMsg.length]);
-			memcpy(keyFrame.payload.get(), rtmpMsg.payload.get(), rtmpMsg.length);
+			auto& frame = m_gopCache[rtmpMsg._timestamp];
+			frame.codecId = RTMP_CODEC_ID_H264;
+			frame = rtmpMsg;
+			frame.payload.reset(new char[rtmpMsg.length]);
+			memcpy(frame.payload.get(), rtmpMsg.payload.get(), rtmpMsg.length);
 		}
 	}
 
@@ -521,11 +521,11 @@ bool RtmpConnection::handleAudio(RtmpMessage& rtmpMsg)
 	{
 		if (m_enableGopCache && m_gopCache.size() >= 1)
 		{
-			auto& keyFrame = m_gopCache[rtmpMsg._timestamp];
-			keyFrame.codecId = RTMP_CODEC_ID_AAC;
-			keyFrame = rtmpMsg;
-			keyFrame.payload.reset(new char[rtmpMsg.length]);
-			memcpy(keyFrame.payload.get(), rtmpMsg.payload.get(), rtmpMsg.length);
+			auto& frame = m_gopCache[rtmpMsg._timestamp];
+			frame.codecId = RTMP_CODEC_ID_AAC;
+			frame = rtmpMsg;
+			frame.payload.reset(new char[rtmpMsg.length]);
+			memcpy(frame.payload.get(), rtmpMsg.payload.get(), rtmpMsg.length);
 		}
 	}
 
