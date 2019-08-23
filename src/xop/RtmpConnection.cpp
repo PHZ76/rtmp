@@ -1,5 +1,6 @@
 #include "RtmpConnection.h"
 #include "RtmpServer.h"
+#include "net/Logger.h"
 #include <random>
 
 using namespace xop;
@@ -335,13 +336,13 @@ bool RtmpConnection::handleMessage(RtmpMessage& rtmpMsg)
             ret = handleNotify(rtmpMsg);
             break;
         case RTMP_FLEX_MESSAGE:
-            throw std::runtime_error("unsupported amf3.");
+			LOG_INFO("unsupported rtmp flex message.\n");
             break;            
         case RTMP_SET_CHUNK_SIZE:           
             m_inChunkSize = readUint32BE(rtmpMsg.payload.get());
             break;
         case RTMP_FLASH_VIDEO:
-            throw std::runtime_error("unsupported flash video.");
+			LOG_INFO("unsupported rtmp flash video.\n");
             break;    
         case RTMP_ACK:
             break;            
@@ -350,7 +351,7 @@ bool RtmpConnection::handleMessage(RtmpMessage& rtmpMsg)
         case RTMP_USER_EVENT:
             break;
         default:
-            printf("unkonw message type : %d\n", rtmpMsg.typeId);
+			LOG_INFO("unkonw message type : %d\n", rtmpMsg.typeId);
             break;
     }
 
@@ -368,7 +369,7 @@ bool RtmpConnection::handleInvoke(RtmpMessage& rtmpMsg)
     }
 
     std::string method = m_amfDec.getString();
-    printf("[Method] %s\n", method.c_str());
+	//LOG_INFO("[Method] %s\n", method.c_str());
 
     if(rtmpMsg.streamId == 0)
     {
@@ -388,7 +389,7 @@ bool RtmpConnection::handleInvoke(RtmpMessage& rtmpMsg)
         m_streamName = m_amfDec.getString();
         m_streamPath = "/" + m_app + "/" + m_streamName;
         
-        if(rtmpMsg.length > bytesUsed)
+        if((int)rtmpMsg.length > bytesUsed)
         {
             bytesUsed += m_amfDec.decode((const char *)rtmpMsg.payload.get()+bytesUsed, rtmpMsg.length-bytesUsed);                      
         }
@@ -598,7 +599,7 @@ bool RtmpConnection::handleCreateStream()
 
 bool RtmpConnection::handlePublish()
 {
-    printf("[Publish] stream path: %s\n", m_streamPath.c_str());        
+    LOG_INFO("[Publish] app: %s, stream name: %s, stream path: %s\n", m_app.c_str(), m_streamName.c_str(), m_streamPath.c_str());
 
     AmfObjects objects; 
     m_amfEnc.reset();
@@ -655,7 +656,7 @@ bool RtmpConnection::handlePublish()
 
 bool RtmpConnection::handlePlay()
 {
-    printf("[Play] stream path: %s\n", m_streamPath.c_str());
+	LOG_INFO("[Play] app: %s, stream name: %s, stream path: %s\n", m_app.c_str(), m_streamName.c_str(), m_streamPath.c_str());
 
     AmfObjects objects; 
     m_amfEnc.reset(); 
@@ -756,7 +757,7 @@ bool RtmpConnection::handDeleteStream()
         {
             m_rtmpServer->removeSession(m_streamPath);
         }
-        
+		m_gopCache.clear();
         m_rtmpMessasges.clear();
     }
 
@@ -931,7 +932,7 @@ void RtmpConnection::sendRtmpChunks(uint32_t csid, RtmpMessage& rtmpMsg)
     bufferOffset += this->createChunkMessageHeader(0, rtmpMsg, buffer + bufferOffset);
     if(rtmpMsg._timestamp >= 0xffffff)
     {
-        writeUint32BE((char*)buffer + bufferOffset, rtmpMsg._timestamp);
+        writeUint32BE((char*)buffer + bufferOffset, (uint32_t)rtmpMsg._timestamp);
         bufferOffset += 4;
     }
 	int a = 0, p = rtmpMsg.length;
@@ -948,7 +949,7 @@ void RtmpConnection::sendRtmpChunks(uint32_t csid, RtmpMessage& rtmpMsg)
             bufferOffset += this->createChunkBasicHeader(3, csid, buffer + bufferOffset);
             if(rtmpMsg._timestamp >= 0xffffff)
             {
-                writeUint32BE(buffer + bufferOffset, rtmpMsg._timestamp);
+                writeUint32BE(buffer + bufferOffset, (uint32_t)rtmpMsg._timestamp);
                 bufferOffset += 4;
             }
         }
@@ -993,7 +994,7 @@ int RtmpConnection::createChunkMessageHeader(uint8_t fmt, RtmpMessage& rtmpMsg, 
     {
         if(rtmpMsg._timestamp < 0xffffff)
         {
-           writeUint24BE((char*)buf, rtmpMsg._timestamp);
+           writeUint24BE((char*)buf, (uint32_t)rtmpMsg._timestamp);
         }
         else
         {

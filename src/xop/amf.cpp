@@ -221,7 +221,7 @@ void AmfEncoder::encodeInt32(int32_t value)
 
 void AmfEncoder::encodeString(const char *str, int len, bool isObject)
 {
-    if((m_size - m_index) < (len + 1 + 2 + 2))
+    if((int)(m_size - m_index) < (len + 1 + 2 + 2))
     {
         this->realloc(m_size + len + 5);
     }
@@ -291,14 +291,14 @@ void AmfEncoder::encodeObjects(AmfObjects& objs)
 
     for(auto iter : objs)
     {     
-        encodeString(iter.first.c_str(), iter.first.size(), false);
+        encodeString(iter.first.c_str(), (int)iter.first.size(), false);
         switch(iter.second.type)
         {
             case AMF_NUMBER:
                 encodeNumber(iter.second.amf_number);
                 break;
             case AMF_STRING:
-                encodeString(iter.second.amf_string.c_str(), iter.second.amf_string.size());
+                encodeString(iter.second.amf_string.c_str(), (int)iter.second.amf_string.size());
                 break;
             case AMF_BOOLEAN:
                 encodeBoolean(iter.second.amf_boolean);
@@ -319,14 +319,14 @@ void AmfEncoder::encodeECMA(AmfObjects& objs)
     
     for(auto iter : objs)
     {     
-        encodeString(iter.first.c_str(), iter.first.size(), false);
+        encodeString(iter.first.c_str(), (int)iter.first.size(), false);
         switch(iter.second.type)
         {
             case AMF_NUMBER:
                 encodeNumber(iter.second.amf_number);
                 break;
             case AMF_STRING:
-                encodeString(iter.second.amf_string.c_str(), iter.second.amf_string.size());
+                encodeString(iter.second.amf_string.c_str(), (int)iter.second.amf_string.size());
                 break;
             case AMF_BOOLEAN:
                 encodeBoolean(iter.second.amf_boolean);
