@@ -2,9 +2,9 @@
 
 目前情况
 -
-* 支持windows和Linux平台
-* 支持H.264和AAC转发
-* 支持GOP缓存
+* 支持 Windows 和 Linux 平台
+* 支持 H.264 和 AAC 转发
+* 支持 GOP 缓存
 
 编译运行
 -
@@ -18,12 +18,13 @@
 
 后续计划
 -
-* RTMP推流器
+* RTMP 推流器
 * 多线程支持
-* HEVC转发支持
+* HEVC 转发支持
 
 感谢
-* Node-Media-Server[https://github.com/illuspas/Node-Media-Server]
+-
+* [Node-Media-Server](https://github.com/illuspas/Node-Media-Server)
 
 联系方式
 -
