@@ -52,27 +52,29 @@ RtmpConnection::~RtmpConnection()
 
 bool RtmpConnection::onRead(BufferReader& buffer)
 {   
-    bool ret = true;
-    if(m_connState >= HANDSHAKE_COMPLETE)
-    {
-        ret = handleChunk(buffer);
-    }
-    else if(m_connState == HANDSHAKE_C0C1 
-        || m_connState == HANDSHAKE_C2
-		|| m_connState == HANDSHAKE_S0S1S2)
-    {
-        ret = this->handleHandshake(buffer);
-        if(m_connState==HANDSHAKE_COMPLETE && buffer.readableBytes()>0 && m_rtmpServer!=nullptr)
-        {
-            ret = handleChunk(buffer);
-        }
-		else if (m_connState == HANDSHAKE_COMPLETE && m_rtmpPublisher !=nullptr)
-		{
-			
-		}
-    }
+	bool ret = true;
+	if(m_connState >= HANDSHAKE_COMPLETE)
+	{
+		ret = handleChunk(buffer);
+	}
+	else if(m_connState == HANDSHAKE_C0C1 || m_connState == HANDSHAKE_C2
+			|| m_connState == HANDSHAKE_S0S1S2)
+	{
+		ret = this->handleHandshake(buffer);
 
-    return ret;
+		if (m_connState == HANDSHAKE_COMPLETE && buffer.readableBytes() > 0)
+		{
+			ret = handleChunk(buffer);
+		}
+
+		if (m_connState == HANDSHAKE_COMPLETE && m_connMode == RTMP_PUBLISHER)
+		{
+			this->setChunkSize();
+			this->connect();
+		}
+	}
+
+	return ret;
 }
 
 void RtmpConnection::onClose()
@@ -121,7 +123,7 @@ bool RtmpConnection::handleHandshake(BufferReader& buffer)
 			LOG_ERROR("unsupported rtmp version %x\n", buf[0]);
 			return false;
 		}
-
+		pos += 1 + 1536 + 1536;
 		resSize = 1536;
 		res.reset(new char[resSize]); //C2
 		memcpy(res.get(), buf + 1, 1536);
@@ -385,7 +387,6 @@ int RtmpConnection::parseChunkBody(BufferReader& buffer)
 
 bool RtmpConnection::handleMessage(RtmpMessage& rtmpMsg)
 {
-    uint8_t *dd = (uint8_t*)rtmpMsg.payload.get();
     bool ret = true;  
     switch(rtmpMsg.typeId)
     {        
@@ -403,12 +404,16 @@ bool RtmpConnection::handleMessage(RtmpMessage& rtmpMsg)
             break;
         case RTMP_FLEX_MESSAGE:
 			LOG_INFO("unsupported rtmp flex message.\n");
+			ret = false;
             break;            
         case RTMP_SET_CHUNK_SIZE:           
-            m_inChunkSize = readUint32BE(rtmpMsg.payload.get());
+			m_inChunkSize = readUint32BE(rtmpMsg.payload.get()); 
             break;
+		case RTMP_BANDWIDTH_SIZE:
+			break;
         case RTMP_FLASH_VIDEO:
 			LOG_INFO("unsupported rtmp flash video.\n");
+			ret = false;
             break;    
         case RTMP_ACK:
             break;            
@@ -428,56 +433,75 @@ bool RtmpConnection::handleInvoke(RtmpMessage& rtmpMsg)
 {   
     bool ret  = true;
     m_amfDec.reset();
-    int bytesUsed = m_amfDec.decode((const char *)rtmpMsg.payload.get(), rtmpMsg.length, 1);
-    if(bytesUsed < 0)
-    {      
-        return false;
-    }
+  
+	int bytesUsed = m_amfDec.decode((const char *)rtmpMsg.payload.get(), rtmpMsg.length, 1);
+	if (bytesUsed < 0)
+	{
+		return false;
+	}
 
     std::string method = m_amfDec.getString();
-	//LOG_INFO("[Method] %s\n", method.c_str());
+	LOG_INFO("[Method] %s\n", method.c_str());
 
-    if(rtmpMsg.streamId == 0)
-    {
-        bytesUsed += m_amfDec.decode(rtmpMsg.payload.get()+bytesUsed, rtmpMsg.length-bytesUsed);
-        if(method == "connect")
-        {            
-            ret = handleConnect();
-        }
-        else if(method == "createStream")
-        {      
-            ret = handleCreateStream();
-        }
-    }
-    else if(rtmpMsg.streamId == m_streamId)
-    {
-        bytesUsed += m_amfDec.decode((const char *)rtmpMsg.payload.get()+bytesUsed, rtmpMsg.length-bytesUsed, 3);
-        m_streamName = m_amfDec.getString();
-        m_streamPath = "/" + m_app + "/" + m_streamName;
+	if (m_connMode == RTMP_PUBLISHER)
+	{
+		bytesUsed += m_amfDec.decode(rtmpMsg.payload.get() + bytesUsed, rtmpMsg.length - bytesUsed);
+		if (method == "_result")
+		{
+			ret = handleResult(rtmpMsg);
+		}
+		else if (method == "onStatus")
+		{
+			ret = handleOnStatus(rtmpMsg);
+		}
+	}
+	else if (m_connMode == RTMP_SERVER)
+	{
+		if(rtmpMsg.streamId == 0)
+		{
+			bytesUsed += m_amfDec.decode(rtmpMsg.payload.get()+bytesUsed, rtmpMsg.length-bytesUsed);
+			if(method == "connect")
+			{            
+				ret = handleConnect();
+			}
+			else if(method == "createStream")
+			{      
+				ret = handleCreateStream();
+			}
+		}
+		else if(rtmpMsg.streamId == m_streamId)
+		{
+			bytesUsed += m_amfDec.decode((const char *)rtmpMsg.payload.get()+bytesUsed, rtmpMsg.length-bytesUsed, 3);
+			m_streamName = m_amfDec.getString();
+			m_streamPath = "/" + m_app + "/" + m_streamName;
         
-        if((int)rtmpMsg.length > bytesUsed)
-        {
-            bytesUsed += m_amfDec.decode((const char *)rtmpMsg.payload.get()+bytesUsed, rtmpMsg.length-bytesUsed);                      
-        }
+			if((int)rtmpMsg.length > bytesUsed)
+			{
+				bytesUsed += m_amfDec.decode((const char *)rtmpMsg.payload.get()+bytesUsed, rtmpMsg.length-bytesUsed);                      
+			}
               
-        if(method == "publish")
-        {            
-            ret = handlePublish();
-        }
-        else if(method == "play")
-        {          
-            ret = handlePlay();
-        }
-        else if(method == "play2")
-        {         
-            ret = handlePlay2();
-        }
-        else if(method == "deleteStream")
-        {
-            ret = handDeleteStream();
-        }
-    }
-      
+			if(method == "publish")
+			{            
+				ret = handlePublish();
+			}
+			else if(method == "play")
+			{          
+				ret = handlePlay();
+			}
+			else if(method == "play2")
+			{         
+				ret = handlePlay2();
+			}
+			else if(method == "deleteStream")
+			{
+				ret = handDeleteStream();
+			}
+			else if (method == "releaseStream")
+			{
+
+			}
+		}
+	}
     return ret;
 }
 
@@ -609,6 +633,54 @@ bool RtmpConnection::handleAudio(RtmpMessage& rtmpMsg)
     } 
     
     return true;
+}
+
+bool RtmpConnection::connect()
+{
+	AmfObjects objects;
+	m_amfEnc.reset();
+	m_app = m_rtmpPublisher->getApp();
+
+	m_amfEnc.encodeString("connect", 7);
+	m_amfEnc.encodeNumber((double)(++m_number));
+	objects["app"] = AmfObject(m_app);
+	objects["type"] = AmfObject(std::string("nonprivate"));
+	objects["swfUrl"] = AmfObject(m_rtmpPublisher->getSwfUrl());
+	objects["tcUrl"] = AmfObject(m_rtmpPublisher->getTcUrl());
+	m_amfEnc.encodeObjects(objects);
+	
+	m_connState = START_CONNECT;
+	sendInvokeMessage(RTMP_CHUNK_INVOKE_ID, m_amfEnc.data(), m_amfEnc.size());
+	return true;
+}
+
+bool RtmpConnection::cretaeStream()
+{
+	AmfObjects objects;
+	m_amfEnc.reset();
+
+	m_amfEnc.encodeString("createStream", 12);
+	m_amfEnc.encodeNumber((double)(++m_number));
+	m_amfEnc.encodeObjects(objects);
+
+	m_connState = START_CREATE_STREAM;
+	sendInvokeMessage(RTMP_CHUNK_INVOKE_ID, m_amfEnc.data(), m_amfEnc.size());
+	return true;
+}
+
+bool RtmpConnection::publish()
+{
+	AmfObjects objects;
+	m_amfEnc.reset();
+
+	m_amfEnc.encodeString("publish", 7);
+	m_amfEnc.encodeNumber((double)(++m_number));
+	m_amfEnc.encodeObjects(objects);
+	m_amfEnc.encodeString(m_app.c_str(), m_app.size());
+
+	m_connState = START_PUBLISH;
+	sendInvokeMessage(RTMP_CHUNK_INVOKE_ID, m_amfEnc.data(), m_amfEnc.size());
+	return true;
 }
 
 bool RtmpConnection::handleConnect()
@@ -826,6 +898,54 @@ bool RtmpConnection::handDeleteStream()
 		m_gopCache.clear();
         m_rtmpMessasges.clear();
     }
+
+	return true;
+}
+
+bool RtmpConnection::handleResult(RtmpMessage& rtmpMsg)
+{
+	bool ret = false;
+
+	if (m_connState == START_CONNECT)
+	{
+		if (m_amfDec.hasObject("code"))
+		{
+			AmfObject amfObj = m_amfDec.getObject("code");
+			if (amfObj.amf_string == "NetConnection.Connect.Success")
+			{
+				this->cretaeStream();
+				ret = true;
+			}
+		}
+	}
+	else if (m_connState == START_CREATE_STREAM)
+	{
+		if (m_amfDec.getNumber() > 0)
+		{
+			m_streamId = (uint32_t)m_amfDec.getNumber();
+			this->publish();
+			ret = true;
+		}
+	}
+
+	return ret;
+}
+
+bool RtmpConnection::handleOnStatus(RtmpMessage& rtmpMsg)
+{
+	bool ret = false;
+
+	if (m_connState == START_PUBLISH)
+	{
+		if (m_amfDec.hasObject("code"))
+		{
+			AmfObject amfObj = m_amfDec.getObject("code");
+			if (amfObj.amf_string == "NetStream.Publish.Start")
+			{
+				ret = true;
+			}
+		}
+	}
 
 	return true;
 }

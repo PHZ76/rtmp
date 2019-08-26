@@ -54,6 +54,8 @@ public:
 		HANDSHAKE_S0S1S2,
         HANDSHAKE_C2,
         HANDSHAKE_COMPLETE,
+		START_CONNECT,
+		START_CREATE_STREAM,
         START_PLAY,
         START_PUBLISH
     };
@@ -106,7 +108,6 @@ private:
 	int parseChunkBody(BufferReader& buffer);
 
 	bool handshake();
-
     bool handleHandshake(BufferReader& buffer);
     bool handleChunk(BufferReader& buffer);
     bool handleMessage(RtmpMessage& rtmpMsg);
@@ -115,12 +116,18 @@ private:
     bool handleVideo(RtmpMessage& rtmpMsg);
     bool handleAudio(RtmpMessage& rtmpMsg);
 
+	bool connect();
+	bool cretaeStream();
+	bool publish();
+
     bool handleConnect();
     bool handleCreateStream();
     bool handlePublish();
     bool handlePlay();
     bool handlePlay2();
     bool handDeleteStream();
+	bool handleResult(RtmpMessage& rtmpMsg);
+	bool handleOnStatus(RtmpMessage& rtmpMsg);
 
     void setPeerBandwidth();
     void sendAcknowledgement();
@@ -149,6 +156,7 @@ private:
 	uint32_t m_inChunkSize = 128;
 	uint32_t m_outChunkSize = 128;
 	uint32_t m_streamId = 0;
+	uint32_t m_number = 0;
 	std::string m_app;
 	std::string m_streamName;
 	std::string m_streamPath;

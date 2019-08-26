@@ -1,7 +1,7 @@
 #ifndef XOP_RTMP_H
 #define XOP_RTMP_H
 
-#define RTMP_VERSION           0X3
+#define RTMP_VERSION           0x3
 
 #define RTMP_SET_CHUNK_SIZE    0x1 //设置块大小
 #define RTMP_AOBRT_MESSAGE     0X2 //终止消息
@@ -130,12 +130,44 @@ protected:
 
 		m_app = app;
 		m_streamName = streamName;
-
+		m_swfUrl = m_tcUrl = std::string("rtmp://") + m_ip + ":" + std::to_string(m_port) + "/" + m_app;
 		return 0;
 	}
 
+	std::string getUrl() const
+	{
+		return m_url;
+	}
+
+	std::string getStreamPath() const
+	{
+		return m_streamPath;
+	}
+
+	std::string getApp() const
+	{
+		return m_app;
+	}
+
+	std::string getStreamName() const
+	{
+		return m_streamName;
+	}
+
+	std::string getSwfUrl() const
+	{
+		return m_swfUrl;
+	}
+
+	std::string getTcUrl() const
+	{
+		return m_tcUrl;
+	}
+
+
 	uint16_t m_port = 1935;
 	std::string m_url;
+	std::string m_tcUrl, m_swfUrl;
 	std::string m_ip;
 	std::string m_app;
 	std::string m_streamName;
