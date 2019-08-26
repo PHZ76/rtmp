@@ -9,7 +9,7 @@
 namespace xop
 {
 
-class RtmpServer : public TcpServer
+class RtmpServer : public TcpServer, public Rtmp
 {
 public:
     RtmpServer(xop::EventLoop *loop, std::string ip, uint16_t port = 1935);

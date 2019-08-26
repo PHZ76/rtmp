@@ -1,24 +1,44 @@
 #include "RtmpConnection.h"
 #include "RtmpServer.h"
+#include "RtmpPublisher.h"
 #include "net/Logger.h"
 #include <random>
 
 using namespace xop;
 
 RtmpConnection::RtmpConnection(RtmpServer *rtmpServer, TaskScheduler *taskScheduler, SOCKET sockfd)
-    : TcpConnection(taskScheduler, sockfd)
-    , m_rtmpServer(rtmpServer)
-    , m_taskScheduler(taskScheduler)
-    , m_channelPtr(new Channel(sockfd))
-    
+	: RtmpConnection(taskScheduler, sockfd)
 {
-    this->setReadCallback([this](std::shared_ptr<TcpConnection> conn, xop::BufferReader& buffer) {
-        return this->onRead(buffer);
-    });
+	m_rtmpServer = rtmpServer;
+	m_connMode = RTMP_SERVER;
+	m_peerBandwidth = rtmpServer->getPeerBandwidth();
+	m_acknowledgementSize = rtmpServer->getAcknowledgementSize();
+	m_maxGopCacheLen = rtmpServer->getGopCacheLen();
+	m_maxChunkSize = rtmpServer->getChunkSize();
+}
 
-    this->setCloseCallback([this](std::shared_ptr<TcpConnection> conn) {
-        this->onClose();
-    });
+RtmpConnection::RtmpConnection(RtmpPublisher *rtmpPublisher, TaskScheduler *taskScheduler, SOCKET sockfd)
+	: RtmpConnection(taskScheduler, sockfd) 
+{
+	m_rtmpPublisher = rtmpPublisher;
+	m_connMode = RTMP_PUBLISHER;
+	m_peerBandwidth = m_rtmpPublisher->getPeerBandwidth();
+	m_acknowledgementSize = m_rtmpPublisher->getAcknowledgementSize();
+	m_maxChunkSize = m_rtmpPublisher->getChunkSize();
+}
+
+RtmpConnection::RtmpConnection(TaskScheduler *taskScheduler, SOCKET sockfd)
+	: TcpConnection(taskScheduler, sockfd)
+	, m_taskScheduler(taskScheduler)
+	, m_channelPtr(new Channel(sockfd))
+{
+	this->setReadCallback([this](std::shared_ptr<TcpConnection> conn, xop::BufferReader& buffer) {
+		return this->onRead(buffer);
+	});
+
+	this->setCloseCallback([this](std::shared_ptr<TcpConnection> conn) {
+		this->onClose();
+	});
 }
 
 RtmpConnection::~RtmpConnection()
@@ -464,7 +484,7 @@ bool RtmpConnection::handleVideo(RtmpMessage& rtmpMsg)
 	{
 		if (payload[1] == 1)
 		{			
-			if (m_enableGopCache)
+			if (m_maxGopCacheLen > 0)
 			{
 				m_gopCache.clear();
 				auto& keyFrame = m_gopCache[rtmpMsg._timestamp];				
@@ -484,7 +504,7 @@ bool RtmpConnection::handleVideo(RtmpMessage& rtmpMsg)
 	}
 	else if (codecId == RTMP_CODEC_ID_H264)
 	{
-		if (m_enableGopCache && m_gopCache.size() >= 1 && m_gopCache.size() < kMaxGopLen)
+		if (m_maxGopCacheLen > 0 && m_gopCache.size() >= 1 && m_gopCache.size() < m_maxGopCacheLen)
 		{
 			auto& frame = m_gopCache[rtmpMsg._timestamp];			
 			frame = rtmpMsg;
@@ -520,7 +540,7 @@ bool RtmpConnection::handleAudio(RtmpMessage& rtmpMsg)
 	}
 	else if (soundFormat == RTMP_CODEC_ID_AAC)
 	{
-		if (m_enableGopCache && m_gopCache.size() >= 2 && m_gopCache.size() < kMaxGopLen)
+		if (m_maxGopCacheLen > 0 && m_gopCache.size() >= 2 && m_gopCache.size() < m_maxGopCacheLen)
 		{
 			if (rtmpMsg._timestamp > 0)
 			{
@@ -714,7 +734,7 @@ bool RtmpConnection::handlePlay()
 			this->sendVideoData(0, publisher->m_avcSequenceHeader, publisher->m_avcSequenceHeaderSize);
 			this->sendAudioData(0, publisher->m_aacSequenceHeader, publisher->m_aacSequenceHeaderSize);
 
-			if (m_enableGopCache)
+			if (m_maxGopCacheLen > 0)
 			{
 				if (publisher->m_gopCache.size() >= 2)
 				{
@@ -785,7 +805,7 @@ bool RtmpConnection::sendMetaData(AmfObjects& metaData)
 void RtmpConnection::setPeerBandwidth()
 {
     std::shared_ptr<char> data(new char[5]);
-    writeUint32BE(data.get(), kPeerBandwidth);
+    writeUint32BE(data.get(), m_peerBandwidth);
     data.get()[4] = 2;
     RtmpMessage rtmpMsg;
     rtmpMsg.typeId = RTMP_BANDWIDTH_SIZE;
@@ -797,7 +817,7 @@ void RtmpConnection::setPeerBandwidth()
 void RtmpConnection::sendAcknowledgement()
 {
     std::shared_ptr<char> data(new char[4]);
-    writeUint32BE(data.get(), kAcknowledgementSize);    
+    writeUint32BE(data.get(), m_acknowledgementSize);
 
     RtmpMessage rtmpMsg;
     rtmpMsg.typeId = RTMP_ACK_SIZE;
@@ -808,7 +828,7 @@ void RtmpConnection::sendAcknowledgement()
 
 void RtmpConnection::setChunkSize()
 {
-    m_outChunkSize = kMaxChunkSize;
+    m_outChunkSize = m_maxChunkSize;
     
     std::shared_ptr<char> data(new char[4]);
     writeUint32BE((char*)data.get(), m_outChunkSize);    

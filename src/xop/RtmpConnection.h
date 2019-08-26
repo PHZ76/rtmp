@@ -11,6 +11,7 @@ namespace xop
 {
 
 class RtmpServer;
+class RtmpPublisher;
 
 // chunk header: basic_header + rtmp_message_header 
 struct RtmpMessageHeader
@@ -62,8 +63,14 @@ public:
 		PARSE_BODY, 
 	};
   
-    RtmpConnection() = delete;
+	enum ConnectionMode
+	{
+		RTMP_SERVER, 
+		RTMP_PUBLISHER,
+	};
+
     RtmpConnection(RtmpServer* rtmpServer, TaskScheduler* taskScheduler, SOCKET sockfd);
+	RtmpConnection(RtmpPublisher *rtmpPublisher, TaskScheduler *taskScheduler, SOCKET sockfd);
     ~RtmpConnection();
 
     std::string getStreamPath() const
@@ -86,6 +93,7 @@ public:
     
 private:
     friend class RtmpSession;
+	RtmpConnection(TaskScheduler *taskScheduler, SOCKET sockfd);
 
     bool onRead(BufferReader& buffer);
     void onClose();
@@ -122,36 +130,38 @@ private:
     int createChunkBasicHeader(uint8_t fmt, uint32_t csid, char* buf);
     int createChunkMessageHeader(uint8_t fmt, RtmpMessage& rtmpMsg, char* buf);   
 
-	RtmpServer *m_rtmpServer;
+	RtmpServer *m_rtmpServer = nullptr;
+	RtmpPublisher *m_rtmpPublisher = nullptr;
+	ConnectionMode  m_connMode = RTMP_SERVER;
 	TaskScheduler *m_taskScheduler;
 	std::shared_ptr<xop::Channel> m_channelPtr;
 
+	uint32_t m_peerBandwidth = 5000000;
+	uint32_t m_acknowledgementSize = 5000000;
+	uint32_t m_maxChunkSize = 128;
+	uint32_t m_maxGopCacheLen = 0;
+	uint32_t m_inChunkSize = 128;
+	uint32_t m_outChunkSize = 128;
+	uint32_t m_streamId = 0;
 	std::string m_app;
 	std::string m_streamName;
 	std::string m_streamPath;
 	AmfObjects m_metaData;
 	AmfDecoder m_amfDec;
 	AmfEncoder m_amfEnc;
-	std::map<int, RtmpMessage> m_rtmpMessasges;
+	std::map<int, RtmpMessage> m_rtmpMessasges;	
 	ConnectionState m_connState = HANDSHAKE_C0C1;
 	ChunkParseState m_chunkParseState = PARSE_HEADER;
 	int m_chunkStreamId = 0;
-	uint32_t m_inChunkSize = 128;
-	uint32_t m_outChunkSize = 128;
-	uint32_t m_streamId = 0;
+
 	bool hasKeyFrame = false;
-	bool m_enableGopCache = true;
 	std::map<uint64_t, RtmpMessage> m_gopCache;
 	std::shared_ptr<char> m_avcSequenceHeader;
 	std::shared_ptr<char> m_aacSequenceHeader;
 	uint32_t m_avcSequenceHeaderSize = 0;
 	uint32_t m_aacSequenceHeaderSize = 0;
-    
-	const uint32_t kPeerBandwidth       = 5000000;
-	const uint32_t kAcknowledgementSize = 5000000;
-	const uint32_t kMaxChunkSize        = 60000;
-	const uint32_t kStreamId            = 1;
-	const uint32_t kMaxGopLen           = 10000;
+
+	const uint32_t kStreamId = 1;
 	const int kChunkMessageLen[4] = { 11, 7, 3, 0 };
 };
       
