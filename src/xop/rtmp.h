@@ -117,7 +117,7 @@ protected:
 		m_url = url;
 
 #if defined(__linux) || defined(__linux__)
-		if (sscanf(m_streamPath.c_str(), "/%[^/]/%s", app, streamName, 400) != 2)
+		if (sscanf(m_streamPath.c_str(), "/%[^/]/%s", app, streamName) != 2)
 #elif defined(WIN32) || defined(_WIN32)
 		if (sscanf_s(m_streamPath.c_str(), "/%[^/]/%s", app, 100, streamName, 400) != 2)
 #endif
