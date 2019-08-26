@@ -3,9 +3,13 @@
 
 int main()
 {
-    xop::EventLoop eventLoop;  
-    xop::RtmpServer server(&eventLoop, "0.0.0.0", 1935);        
-    eventLoop.loop();
-    
-    return 0;
+	xop::EventLoop eventLoop;  
+
+	xop::RtmpServer server(&eventLoop, "0.0.0.0", 1935);    
+	server.setChunkSize(60000);
+	//server.setGopCache();
+
+	eventLoop.loop();
+
+	return 0;
 }
