@@ -25,7 +25,7 @@ RtmpServer::~RtmpServer()
 
 TcpConnection::Ptr RtmpServer::newConnection(SOCKET sockfd)
 {
-    return std::make_shared<RtmpConnection>(this, _eventLoop->getTaskScheduler().get(), sockfd);
+    return std::make_shared<RtmpConnection>((RtmpServer*)this, _eventLoop->getTaskScheduler().get(), sockfd);
 }
 
 void RtmpServer::addSession(std::string streamPath)

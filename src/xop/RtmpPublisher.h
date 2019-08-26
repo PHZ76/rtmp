@@ -17,7 +17,9 @@ public:
 	~RtmpPublisher();
 
 	int openUrl(std::string url);
-	
+	void close();
+	bool isConnected();
+
 private:
 	friend class RtmpConnection;
 

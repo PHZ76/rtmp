@@ -35,6 +35,7 @@ int RtmpPublisher::openUrl(std::string url)
 		m_eventLoop->addTriggerEvent([sockfd, rtmpConn]() {
 			rtmpConn->close();
 		});
+		m_rtmpConn = nullptr;
 	}
 
 	TcpSocket tcpSocket;
@@ -45,14 +46,35 @@ int RtmpPublisher::openUrl(std::string url)
 		return -1;
 	}
 
-	
-	sockfd = tcpSocket.fd();
-	//m_rtmpConn.reset(new RtmpConnection(this, m_eventLoop->getTaskScheduler().get(), sockfd));
+	m_rtmpConn.reset(new RtmpConnection((RtmpPublisher*)this, m_eventLoop->getTaskScheduler().get(), tcpSocket.fd()));
 	m_eventLoop->addTriggerEvent([sockfd, this]() {
-		//rtmpConn->sendOptions(RtspConnection::RTSP_PUSHER);
+		m_rtmpConn->handshake();
 	});
 
 	return 0;
+}
 
-	return 0;
+void RtmpPublisher::close()
+{
+	std::lock_guard<std::mutex> lock(m_mutex);
+	if (m_rtmpConn != nullptr)
+	{
+		std::shared_ptr<RtmpConnection> rtmpConn = m_rtmpConn;
+		SOCKET sockfd = rtmpConn->fd();
+		m_eventLoop->addTriggerEvent([sockfd, rtmpConn]() {
+			rtmpConn->close();
+		});
+		m_rtmpConn = nullptr;
+	}
+}
+
+bool RtmpPublisher::isConnected()
+{
+	std::lock_guard<std::mutex> lock(m_mutex);
+	if (m_rtmpConn != nullptr)
+	{
+		return (!m_rtmpConn->isClosed());
+	}
+
+	return false;
 }

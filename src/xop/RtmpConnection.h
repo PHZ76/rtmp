@@ -51,6 +51,7 @@ public:
     enum ConnectionState
     {
         HANDSHAKE_C0C1, 
+		HANDSHAKE_S0S1S2,
         HANDSHAKE_C2,
         HANDSHAKE_COMPLETE,
         START_PLAY,
@@ -93,6 +94,9 @@ public:
     
 private:
     friend class RtmpSession;
+	friend class RtmpServer;
+	friend class RtmpPublisher;
+
 	RtmpConnection(TaskScheduler *taskScheduler, SOCKET sockfd);
 
     bool onRead(BufferReader& buffer);
@@ -100,6 +104,8 @@ private:
 
 	int parseChunkHeader(BufferReader& buffer);
 	int parseChunkBody(BufferReader& buffer);
+
+	bool handshake();
 
     bool handleHandshake(BufferReader& buffer);
     bool handleChunk(BufferReader& buffer);

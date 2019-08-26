@@ -32,6 +32,9 @@
 #define RTMP_CODEC_ID_G711A    7
 #define RTMP_CODEC_ID_G711U    8
 
+namespace xop
+{
+
 class Rtmp
 {
 public:
@@ -143,6 +146,8 @@ protected:
 	uint32_t m_maxChunkSize = 128;
 	uint32_t m_maxGopCacheLen = 0;
 };
+
+}
 
 #endif
  

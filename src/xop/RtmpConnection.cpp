@@ -11,6 +11,8 @@ RtmpConnection::RtmpConnection(RtmpServer *rtmpServer, TaskScheduler *taskSchedu
 {
 	m_rtmpServer = rtmpServer;
 	m_connMode = RTMP_SERVER;
+	m_connState = HANDSHAKE_C0C1;
+	m_chunkParseState = PARSE_HEADER;
 	m_peerBandwidth = rtmpServer->getPeerBandwidth();
 	m_acknowledgementSize = rtmpServer->getAcknowledgementSize();
 	m_maxGopCacheLen = rtmpServer->getGopCacheLen();
@@ -22,6 +24,8 @@ RtmpConnection::RtmpConnection(RtmpPublisher *rtmpPublisher, TaskScheduler *task
 {
 	m_rtmpPublisher = rtmpPublisher;
 	m_connMode = RTMP_PUBLISHER;
+	m_connState = HANDSHAKE_S0S1S2;
+	m_chunkParseState = PARSE_HEADER;
 	m_peerBandwidth = m_rtmpPublisher->getPeerBandwidth();
 	m_acknowledgementSize = m_rtmpPublisher->getAcknowledgementSize();
 	m_maxChunkSize = m_rtmpPublisher->getChunkSize();
@@ -54,13 +58,18 @@ bool RtmpConnection::onRead(BufferReader& buffer)
         ret = handleChunk(buffer);
     }
     else if(m_connState == HANDSHAKE_C0C1 
-        || m_connState == HANDSHAKE_C2)
+        || m_connState == HANDSHAKE_C2
+		|| m_connState == HANDSHAKE_S0S1S2)
     {
         ret = this->handleHandshake(buffer);
-        if(m_connState==HANDSHAKE_COMPLETE && buffer.readableBytes()>0)
+        if(m_connState==HANDSHAKE_COMPLETE && buffer.readableBytes()>0 && m_rtmpServer!=nullptr)
         {
             ret = handleChunk(buffer);
         }
+		else if (m_connState == HANDSHAKE_COMPLETE && m_rtmpPublisher !=nullptr)
+		{
+			
+		}
     }
 
     return ret;
@@ -71,6 +80,26 @@ void RtmpConnection::onClose()
     this->handDeleteStream();
 }
 
+bool RtmpConnection::handshake()
+{
+	std::shared_ptr<char> res;
+	uint32_t resSize = 1 + 1536; //COC1  
+
+	res.reset(new char[resSize]);    
+	memset(res.get(), 0, 1537);
+	res.get()[0] = RTMP_VERSION;
+
+	std::random_device rd;
+	uint8_t *p = (uint8_t *)res.get(); p += 9;
+	for (int i = 0; i < 1528; i++)
+	{
+		*p++ = rd();
+	}
+
+	this->send(res, resSize);
+	return true;
+}
+
 bool RtmpConnection::handleHandshake(BufferReader& buffer)
 {
     uint8_t *buf = (uint8_t*)buffer.peek();
@@ -78,8 +107,27 @@ bool RtmpConnection::handleHandshake(BufferReader& buffer)
     uint32_t pos = 0;
     std::shared_ptr<char> res;
     uint32_t resSize = 0;
+	std::random_device rd;
 
-    if(m_connState == HANDSHAKE_C0C1)
+	if (m_connState == HANDSHAKE_S0S1S2)
+	{
+		if (bufSize < (1 + 1536 + 1536)) //S0S1S2
+		{
+			return true;
+		}
+
+		if (buf[0] != RTMP_VERSION)
+		{
+			LOG_ERROR("unsupported rtmp version %x\n", buf[0]);
+			return false;
+		}
+
+		resSize = 1536;
+		res.reset(new char[resSize]); //C2
+		memcpy(res.get(), buf + 1, 1536);
+		m_connState = HANDSHAKE_COMPLETE;
+	}
+    else if(m_connState == HANDSHAKE_C0C1)
     {
         if(bufSize < 1537) //c0c1
         {           
@@ -98,8 +146,6 @@ bool RtmpConnection::handleHandshake(BufferReader& buffer)
             memset(res.get(), 0, 1537);
             res.get()[0] = RTMP_VERSION;
             
-            // 填充随机数据
-            std::random_device rd;
             char *p = res.get(); p += 9;
             for(int i=0; i<1528; i++)
             {
@@ -111,7 +157,7 @@ bool RtmpConnection::handleHandshake(BufferReader& buffer)
     } 
     else if(m_connState == HANDSHAKE_C2)
     {
-        if(bufSize < 1536) //c0c1
+        if(bufSize < 1536) //c2
         {           
             return true;
         }
