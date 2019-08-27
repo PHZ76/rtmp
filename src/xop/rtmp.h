@@ -1,6 +1,9 @@
 #ifndef XOP_RTMP_H
 #define XOP_RTMP_H
 
+#include <cstdint>
+#include <memory>
+
 #define RTMP_VERSION           0x3
 
 #define RTMP_SET_CHUNK_SIZE    0x1 //…Ë÷√øÈ¥Û–°
@@ -34,6 +37,27 @@
 
 namespace xop
 {
+
+struct MediaInfo
+{
+	uint8_t  videoCodecId = RTMP_CODEC_ID_H264;
+	uint8_t  videoFramerate = 0;
+	uint32_t videoWidth = 0;
+	uint32_t videoHeight = 0;
+	std::shared_ptr<uint8_t> sps;
+	std::shared_ptr<uint8_t> pps;
+	std::shared_ptr<uint8_t> sei;
+	uint32_t spsSize = 0;
+	uint32_t ppsSize = 0;
+	uint32_t seiSize = 0;
+
+	uint8_t  audioCodecId = RTMP_CODEC_ID_AAC;
+	uint32_t audioChannel = 0;
+	uint32_t audioSamplerate = 0;
+	uint32_t audioFrameLen = 0;
+	std::shared_ptr<uint8_t>  audioSpecificConfig;
+	uint32_t audioSpecificConfigSize = 0;
+};
 
 class Rtmp
 {

@@ -56,6 +56,7 @@ public:
         HANDSHAKE_COMPLETE,
 		START_CONNECT,
 		START_CREATE_STREAM,
+		START_DELETE_STREAM,
         START_PLAY,
         START_PUBLISH
     };
@@ -119,6 +120,7 @@ private:
 	bool connect();
 	bool cretaeStream();
 	bool publish();
+	bool deleteStream();
 
     bool handleConnect();
     bool handleCreateStream();

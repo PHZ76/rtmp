@@ -29,6 +29,9 @@ RtmpConnection::RtmpConnection(RtmpPublisher *rtmpPublisher, TaskScheduler *task
 	m_peerBandwidth = m_rtmpPublisher->getPeerBandwidth();
 	m_acknowledgementSize = m_rtmpPublisher->getAcknowledgementSize();
 	m_maxChunkSize = m_rtmpPublisher->getChunkSize();
+	m_streamPath = m_rtmpPublisher->getStreamPath();
+	m_streamName = m_rtmpPublisher->getStreamName();
+	m_app = m_rtmpPublisher->getApp();
 }
 
 RtmpConnection::RtmpConnection(TaskScheduler *taskScheduler, SOCKET sockfd)
@@ -79,7 +82,14 @@ bool RtmpConnection::onRead(BufferReader& buffer)
 
 void RtmpConnection::onClose()
 {
-    this->handDeleteStream();
+	if (m_rtmpServer != nullptr)
+	{
+		this->handDeleteStream();
+	}
+	else if (m_rtmpPublisher != nullptr)
+	{
+		this->deleteStream();
+	}
 }
 
 bool RtmpConnection::handshake()
@@ -639,7 +649,6 @@ bool RtmpConnection::connect()
 {
 	AmfObjects objects;
 	m_amfEnc.reset();
-	m_app = m_rtmpPublisher->getApp();
 
 	m_amfEnc.encodeString("connect", 7);
 	m_amfEnc.encodeNumber((double)(++m_number));
@@ -676,9 +685,24 @@ bool RtmpConnection::publish()
 	m_amfEnc.encodeString("publish", 7);
 	m_amfEnc.encodeNumber((double)(++m_number));
 	m_amfEnc.encodeObjects(objects);
-	m_amfEnc.encodeString(m_app.c_str(), m_app.size());
+	m_amfEnc.encodeString(m_streamName.c_str(), (int)m_streamName.size());
 
 	m_connState = START_PUBLISH;
+	sendInvokeMessage(RTMP_CHUNK_INVOKE_ID, m_amfEnc.data(), m_amfEnc.size());
+	return true;
+}
+
+bool RtmpConnection::deleteStream()
+{
+	AmfObjects objects;
+	m_amfEnc.reset();
+
+	m_amfEnc.encodeString("deleteStream", 12);
+	m_amfEnc.encodeNumber((double)(++m_number));
+	m_amfEnc.encodeObjects(objects);
+	m_amfEnc.encodeNumber(m_streamId);
+
+	m_connState = START_DELETE_STREAM;
 	sendInvokeMessage(RTMP_CHUNK_INVOKE_ID, m_amfEnc.data(), m_amfEnc.size());
 	return true;
 }
@@ -933,16 +957,27 @@ bool RtmpConnection::handleResult(RtmpMessage& rtmpMsg)
 
 bool RtmpConnection::handleOnStatus(RtmpMessage& rtmpMsg)
 {
-	bool ret = false;
+	bool ret = true;
 
 	if (m_connState == START_PUBLISH)
 	{
 		if (m_amfDec.hasObject("code"))
 		{
 			AmfObject amfObj = m_amfDec.getObject("code");
-			if (amfObj.amf_string == "NetStream.Publish.Start")
+			if (amfObj.amf_string != "NetStream.Publish.Start")
 			{
-				ret = true;
+				ret = false;
+			}
+		}
+	}
+	if (m_connState == START_DELETE_STREAM)
+	{
+		if (m_amfDec.hasObject("code"))
+		{
+			AmfObject amfObj = m_amfDec.getObject("code");
+			if (amfObj.amf_string != "NetStream.Unpublish.Success")
+			{
+				ret = false;
 			}
 		}
 	}
