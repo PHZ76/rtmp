@@ -13,7 +13,6 @@ namespace xop
 class RtmpPublisher : public Rtmp
 {
 public:
-	RtmpPublisher() = delete;
 	RtmpPublisher(xop::EventLoop *loop);
 	~RtmpPublisher();
 
@@ -30,6 +29,7 @@ public:
 private:
 	friend class RtmpConnection;
 
+	RtmpPublisher() {}
 	bool isKeyFrame(uint8_t *data, uint32_t size);
 
 	xop::EventLoop *m_eventLoop;
