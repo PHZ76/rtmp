@@ -5,7 +5,7 @@
 * 支持 Windows 和 Linux 平台
 * 支持 H.264 和 AAC 转发
 * 支持 GOP 缓存
-* 支持 RTPM 推流
+* 支持 RTMP 推流
 
 编译运行
 -
