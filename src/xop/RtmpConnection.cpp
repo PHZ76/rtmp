@@ -332,13 +332,16 @@ int RtmpConnection::parseChunkHeader(BufferReader& buffer)
 			bytesUsed += 4;
 		}
 		
-		if (fmt == 0)
+		if (fmt == RTMP_CHUNK_TYPE_0)
 		{
+			/* absolute timestamp */
+			rtmpMsg._timestamp = 0;
 			rtmpMsg.timestamp = timestamp;
 			rtmpMsg.extTimestamp = extTimestamp;
 		}
 		else
 		{
+			/* relative timestamp (timestamp delta) */
 			if (rtmpMsg.timestamp >= 0xffffff) // extended timestamp
 			{
 				rtmpMsg.extTimestamp += extTimestamp;
@@ -451,7 +454,7 @@ bool RtmpConnection::handleInvoke(RtmpMessage& rtmpMsg)
 	}
 
     std::string method = m_amfDec.getString();
-	LOG_INFO("[Method] %s\n", method.c_str());
+	//LOG_INFO("[Method] %s\n", method.c_str());
 
 	if (m_connMode == RTMP_PUBLISHER)
 	{

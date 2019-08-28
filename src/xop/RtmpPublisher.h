@@ -19,7 +19,7 @@ public:
 
 	int setMediaInfo(MediaInfo mediaInfo);
 
-	int openUrl(std::string url);
+	int openUrl(std::string url, int msec = 0);
 	void close();
 	bool isConnected();
 
@@ -44,7 +44,10 @@ private:
 	uint8_t m_audioTag = 0;
 	bool m_hasKeyFrame = false;
 	xop::Timestamp m_timestamp;
-	const uint32_t SamplingFrequency[16] = { 96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350, 0, 0, 0};
+	uint64_t m_videoTimestamp = 0;
+	uint64_t m_audioTimestamp = 0;
+
+	const uint32_t kSamplingFrequency[16] = { 96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350, 0, 0, 0};
 };
 
 }

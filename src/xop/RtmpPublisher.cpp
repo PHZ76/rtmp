@@ -36,7 +36,7 @@ int RtmpPublisher::setMediaInfo(MediaInfo mediaInfo)
 			m_audioTag = data[0] = (((RTMP_CODEC_ID_AAC & 0xf) << 4) | ((soundRate & 0x3) << 2) | ((soundSize & 0x1) << 1) | (soundType & 0x1));
 
 			// aac packet type 
-			data[0] = 0; // 0: aac sequence header, 1: aac raw data
+			data[1] = 0; // 0: aac sequence header, 1: aac raw data
 
 			memcpy(data+2, m_mediaIinfo.audioSpecificConfig.get(), m_mediaIinfo.audioSpecificConfigSize);
 
@@ -44,7 +44,7 @@ int RtmpPublisher::setMediaInfo(MediaInfo mediaInfo)
 			uint32_t samplingFrequencyIndex = ((data[2] & 0x07) << 1) | ((data[3] & 0x80) >> 7);
 			uint32_t channel = (data[3] & 0x78) >> 3;
 			m_mediaIinfo.audioChannel = channel;
-			m_mediaIinfo.audioSamplerate = SamplingFrequency[samplingFrequencyIndex];
+			m_mediaIinfo.audioSamplerate = kSamplingFrequency[samplingFrequencyIndex];
 		}
 		else
 		{
@@ -101,21 +101,18 @@ int RtmpPublisher::setMediaInfo(MediaInfo mediaInfo)
 		}
 	}
 
-	if (m_mediaIinfo.videoCodecId == RTMP_CODEC_ID_H264)
-	{
-		m_hasKeyFrame = false;
-	}
-	else
-	{
-		m_hasKeyFrame = true;
-	}
-
 	return 0;
 }
 
-int RtmpPublisher::openUrl(std::string url)
+int RtmpPublisher::openUrl(std::string url, int msec)
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
+
+	int timeout = msec;
+	if (timeout <= 0)
+	{
+		timeout = 5000;
+	}
 
 	if (this->parseRtmpUrl(url) != 0)
 	{
@@ -139,7 +136,7 @@ int RtmpPublisher::openUrl(std::string url)
 
 	TcpSocket tcpSocket;
 	tcpSocket.create();
-	if (!tcpSocket.connect(m_ip, m_port, 3000)) // 3s timeout
+	if (!tcpSocket.connect(m_ip, m_port, timeout)) // 3s timeout
 	{
 		tcpSocket.close();
 		return -1;
@@ -150,13 +147,23 @@ int RtmpPublisher::openUrl(std::string url)
 		m_rtmpConn->handshake();
 	});
 
-	m_hasKeyFrame = false;
+	m_videoTimestamp = 0;
+	m_audioTimestamp = 0;
+	if (m_mediaIinfo.videoCodecId == RTMP_CODEC_ID_H264)
+	{
+		m_hasKeyFrame = false;
+	}
+	else
+	{
+		m_hasKeyFrame = true;
+	}
 	return 0;
 }
 
 void RtmpPublisher::close()
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
+
 	if (m_rtmpConn != nullptr)
 	{		
 		std::shared_ptr<RtmpConnection> rtmpConn = m_rtmpConn;
@@ -165,12 +172,16 @@ void RtmpPublisher::close()
 			rtmpConn->close();
 		});
 		m_rtmpConn = nullptr;
+		m_videoTimestamp = 0;
+		m_audioTimestamp = 0;
+		m_hasKeyFrame = false;
 	}
 }
 
 bool RtmpPublisher::isConnected()
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
+
 	if (m_rtmpConn != nullptr)
 	{
 		return (!m_rtmpConn->isClosed());
@@ -202,9 +213,9 @@ bool RtmpPublisher::isKeyFrame(uint8_t *data, uint32_t size)
 
 int RtmpPublisher::pushVideoFrame(uint8_t *data, uint32_t size)
 {
-	//std::lock_guard<std::mutex> lock(m_mutex);
+	std::lock_guard<std::mutex> lock(m_mutex);
 
-	if (m_rtmpConn!=nullptr && m_rtmpConn->isClosed() || size <= 5)
+	if (m_rtmpConn == nullptr || m_rtmpConn->isClosed() || size <= 5)
 	{
 		return -1;
 	}
@@ -230,6 +241,14 @@ int RtmpPublisher::pushVideoFrame(uint8_t *data, uint32_t size)
 		}
 
 		uint64_t timestamp = m_timestamp.elapsed();
+		//uint64_t timestamp_delta = 0;
+		//if (timestamp < m_videoTimestamp)
+		//{
+		//	timestamp = m_videoTimestamp;
+		//}
+		//timestamp_delta = timestamp - m_videoTimestamp;
+		//m_videoTimestamp = timestamp;
+
 		std::shared_ptr<char> payload(new char[size + 4096]);
 		uint32_t payloadSize = 0;
 
@@ -260,9 +279,9 @@ int RtmpPublisher::pushVideoFrame(uint8_t *data, uint32_t size)
 
 int RtmpPublisher::pushAudioFrame(uint8_t *data, uint32_t size)
 {
-	//std::lock_guard<std::mutex> lock(m_mutex);
+	std::lock_guard<std::mutex> lock(m_mutex);
 
-	if (m_rtmpConn != nullptr && m_rtmpConn->isClosed() || size <= 0)
+	if (m_rtmpConn == nullptr || m_rtmpConn->isClosed() || size <= 0)
 	{
 		return -1;
 	}
@@ -270,6 +289,14 @@ int RtmpPublisher::pushAudioFrame(uint8_t *data, uint32_t size)
 	if (m_hasKeyFrame && m_mediaIinfo.audioCodecId == RTMP_CODEC_ID_AAC)
 	{
 		uint64_t timestamp = m_timestamp.elapsed();
+		//uint64_t timestamp_delta = 0;
+		//if (timestamp < m_audioTimestamp)
+		//{
+		//	timestamp = m_audioTimestamp;
+		//}
+		//timestamp_delta = timestamp - m_audioTimestamp;
+		//m_audioTimestamp = timestamp;
+		
 		uint32_t payloadSize = size + 2;
 		std::shared_ptr<char> payload(new char[size + 2]);
 		payload.get()[0] = m_audioTag;
