@@ -20,7 +20,7 @@ int main(int argc, char **argv)
 	/* rtmp server example */
     xop::RtmpServer server(&eventLoop, "0.0.0.0", 1935);    
 	server.setChunkSize(60000);
-	//server.setGopCache(); /* enable gop cache */
+	server.setGopCache(); /* enable gop cache */
 
 #if TEST_RTMP_PUSHER
 	std::thread t([&eventLoop] () {
@@ -233,14 +233,14 @@ int test_rtmp_publisher(xop::EventLoop *eventLoop)
 					xop::Nal sps = xop::H264Parser::findNal(frameBuf, frameSize);
 					if (sps.first != nullptr && sps.second != nullptr && *sps.first == 0x67)
 					{
-						mediaInfo.spsSize = sps.second - sps.first + 1;
+						mediaInfo.spsSize = (uint32_t)(sps.second - sps.first + 1);
 						mediaInfo.sps.reset(new uint8_t[mediaInfo.spsSize]);
 						memcpy(mediaInfo.sps.get(), sps.first, mediaInfo.spsSize);
 
-						xop::Nal pps = xop::H264Parser::findNal(sps.second, frameSize - (sps.second - frameBuf));
+						xop::Nal pps = xop::H264Parser::findNal(sps.second, frameSize - (int)(sps.second - frameBuf));
 						if (pps.first != nullptr && pps.second != nullptr && *pps.first == 0x68)
 						{
-							mediaInfo.ppsSize = pps.second - pps.first + 1;
+							mediaInfo.ppsSize = (uint32_t)(pps.second - pps.first + 1);
 							mediaInfo.pps.reset(new uint8_t[mediaInfo.ppsSize]);
 							memcpy(mediaInfo.pps.get(), pps.first, mediaInfo.ppsSize);
 

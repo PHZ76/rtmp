@@ -18,6 +18,18 @@ public:
     void setMetaData(AmfObjects metaData)
     { m_metaData = metaData; }
     
+	void setAvcSequenceHeader(std::shared_ptr<char> avcSequenceHeader, uint32_t avcSequenceHeaderSize)
+	{
+		m_avcSequenceHeader = avcSequenceHeader;
+		m_avcSequenceHeaderSize = avcSequenceHeaderSize;
+	}
+
+	void setAacSequenceHeader(std::shared_ptr<char> aacSequenceHeader, uint32_t aacSequenceHeaderSize)
+	{
+		m_aacSequenceHeader = aacSequenceHeader;
+		m_aacSequenceHeaderSize = aacSequenceHeaderSize;
+	}
+
     AmfObjects getMetaData() const 
     { return m_metaData; }   
 
@@ -39,6 +51,11 @@ private:
     bool m_hasPublisher = false;
 	std::weak_ptr<TcpConnection> m_publisher;
     std::unordered_map<SOCKET, std::weak_ptr<TcpConnection>> m_clients; 
+
+	std::shared_ptr<char> m_avcSequenceHeader;
+	std::shared_ptr<char> m_aacSequenceHeader;
+	uint32_t m_avcSequenceHeaderSize = 0;
+	uint32_t m_aacSequenceHeaderSize = 0;
 };
 
 }

@@ -560,6 +560,12 @@ bool RtmpConnection::handleNotify(RtmpMessage& rtmpMsg)
 
 bool RtmpConnection::handleVideo(RtmpMessage& rtmpMsg)
 {  
+	RtmpSession::Ptr sessionPtr = m_rtmpServer->getSession(m_streamPath);
+	if (sessionPtr == nullptr)
+	{
+		return false;
+	}
+
 	uint8_t *payload = (uint8_t *)rtmpMsg.payload.get();
 	uint8_t frameType = (payload[0] >> 4) & 0x0f;
 	uint8_t codecId = payload[0] & 0x0f;
@@ -583,6 +589,7 @@ bool RtmpConnection::handleVideo(RtmpMessage& rtmpMsg)
 			m_avcSequenceHeaderSize = rtmpMsg.length;
 			m_avcSequenceHeader.reset(new char[rtmpMsg.length]);
 			memcpy(m_avcSequenceHeader.get(), rtmpMsg.payload.get(), rtmpMsg.length);
+			sessionPtr->setAvcSequenceHeader(m_avcSequenceHeader, m_avcSequenceHeaderSize);
 		}		
 	}
 	else if (codecId == RTMP_CODEC_ID_H264)
@@ -597,19 +604,18 @@ bool RtmpConnection::handleVideo(RtmpMessage& rtmpMsg)
 		}
 	}
 
-    if(m_streamPath != "")
-    {
-        auto sessionPtr = m_rtmpServer->getSession(m_streamPath); 
-        if(sessionPtr)
-        {   
-            sessionPtr->sendMediaData(RTMP_VIDEO, rtmpMsg._timestamp, rtmpMsg.payload, rtmpMsg.length);
-        }  
-    } 
+	sessionPtr->sendMediaData(RTMP_VIDEO, rtmpMsg._timestamp, rtmpMsg.payload, rtmpMsg.length);
     return true;
 }
 
 bool RtmpConnection::handleAudio(RtmpMessage& rtmpMsg)
 {
+	RtmpSession::Ptr sessionPtr = m_rtmpServer->getSession(m_streamPath);
+	if (sessionPtr == nullptr)
+	{
+		return false;
+	}
+
 	uint8_t *payload = (uint8_t *)rtmpMsg.payload.get();
 	uint8_t soundFormat = (payload[0] >> 4) & 0x0f;
 	uint8_t soundSize = (payload[0] >> 1) & 0x01;
@@ -620,6 +626,7 @@ bool RtmpConnection::handleAudio(RtmpMessage& rtmpMsg)
 		m_aacSequenceHeaderSize = rtmpMsg.length;
 		m_aacSequenceHeader.reset(new char[rtmpMsg.length]);
 		memcpy(m_aacSequenceHeader.get(), rtmpMsg.payload.get(), rtmpMsg.length);
+		sessionPtr->setAacSequenceHeader(m_aacSequenceHeader, m_aacSequenceHeaderSize);
 	}
 	else if (soundFormat == RTMP_CODEC_ID_AAC)
 	{
@@ -636,15 +643,7 @@ bool RtmpConnection::handleAudio(RtmpMessage& rtmpMsg)
 		}
 	}
 
-    if(m_streamPath != "")
-    {
-        auto sessionPtr = m_rtmpServer->getSession(m_streamPath); 
-        if(sessionPtr)
-        {   
-           sessionPtr->sendMediaData(RTMP_AUDIO, rtmpMsg._timestamp, rtmpMsg.payload, rtmpMsg.length);
-        }  
-    } 
-    
+	sessionPtr->sendMediaData(RTMP_AUDIO, rtmpMsg._timestamp, rtmpMsg.payload, rtmpMsg.length);
     return true;
 }
 

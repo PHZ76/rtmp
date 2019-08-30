@@ -27,6 +27,7 @@ private:
 
     virtual TcpConnection::Ptr newConnection(SOCKET sockfd);
     
+	xop::EventLoop *m_eventLoop = nullptr;
     std::mutex m_mutex;
     std::unordered_map<std::string, RtmpSession::Ptr> m_rtmpSessions; 
 }; 
