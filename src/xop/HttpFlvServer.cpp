@@ -31,6 +31,6 @@ void HttpFlvServer::attach(RtmpServer *rtmpServer)
 
 TcpConnection::Ptr HttpFlvServer::newConnection(SOCKET sockfd)
 {
-	return std::make_shared<HttpFlvConnection>(_eventLoop->getTaskScheduler().get(), sockfd);
+	return std::make_shared<HttpFlvConnection>(m_rtmpServer, _eventLoop->getTaskScheduler().get(), sockfd);
 }
 

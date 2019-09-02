@@ -3,6 +3,7 @@
 
 #include <string>
 #include <mutex>
+#include "rtmp.h"
 #include "RtmpSession.h"
 #include "net/TcpServer.h"
 
@@ -17,6 +18,7 @@ public:
        
 private:
 	friend class RtmpConnection;
+	friend class HttpFlvConnection;
 
 	void addSession(std::string streamPath);
 	void removeSession(std::string streamPath);

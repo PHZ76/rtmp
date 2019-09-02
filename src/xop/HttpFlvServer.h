@@ -12,7 +12,7 @@ class RtmpServer;
 class HttpFlvServer : public TcpServer
 {
 public:
-	HttpFlvServer(xop::EventLoop *loop, std::string ip, uint16_t port = 8080);
+	HttpFlvServer(xop::EventLoop *loop, std::string ip, uint16_t port = 8000);
 	~HttpFlvServer();
 
 	void attach(RtmpServer *rtmpServer);

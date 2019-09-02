@@ -1,6 +1,8 @@
 #ifndef XOP_RTMP_H
 #define XOP_RTMP_H
 
+#include <cstdio>
+#include <cstring>
 #include <cstdint>
 #include <memory>
 
@@ -34,6 +36,9 @@
 #define RTMP_CODEC_ID_AAC      10
 #define RTMP_CODEC_ID_G711A    7
 #define RTMP_CODEC_ID_G711U    8
+
+#define RTMP_AVC_SEQUENCE_HEADER  0x18
+#define RTMP_AAC_SEQUENCE_HEADER  0x19
 
 namespace xop
 {
