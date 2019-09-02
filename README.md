@@ -3,7 +3,7 @@
 目前情况
 -
 * 支持 Windows 和 Linux 平台
-* 支持 RTMP, HTTP-FLV
+* 支持 RTMP, HTTP-FLV 协议
 * 支持 H.264 和 AAC 转发
 * 支持 GOP 缓存
 * 支持 RTMP 推流
