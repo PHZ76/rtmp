@@ -1,0 +1,198 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="源文件">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="头文件">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="资源文件">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="源文件\net">
+      <UniqueIdentifier>{51a5e88c-cea3-4844-9156-eb014426ae54}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\xop">
+      <UniqueIdentifier>{9aef1dd1-2252-4eb1-bce3-05ae4f800d13}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\example\rtmp_server.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\net\Acceptor.cpp">
+      <Filter>源文件\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\net\BufferReader.cpp">
+      <Filter>源文件\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\net\BufferWriter.cpp">
+      <Filter>源文件\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\net\EpollTaskScheduler.cpp">
+      <Filter>源文件\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\net\EventLoop.cpp">
+      <Filter>源文件\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\net\Logger.cpp">
+      <Filter>源文件\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\net\MemoryManager.cpp">
+      <Filter>源文件\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\net\NetInterface.cpp">
+      <Filter>源文件\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\net\Pipe.cpp">
+      <Filter>源文件\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\net\SelectTaskScheduler.cpp">
+      <Filter>源文件\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\net\SocketUtil.cpp">
+      <Filter>源文件\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\net\TaskScheduler.cpp">
+      <Filter>源文件\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\net\TcpConnection.cpp">
+      <Filter>源文件\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\net\TcpServer.cpp">
+      <Filter>源文件\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\net\TcpSocket.cpp">
+      <Filter>源文件\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\net\Timer.cpp">
+      <Filter>源文件\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\net\Timestamp.cpp">
+      <Filter>源文件\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\xop\amf.cpp">
+      <Filter>源文件\xop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\xop\RtmpConnection.cpp">
+      <Filter>源文件\xop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\xop\RtmpServer.cpp">
+      <Filter>源文件\xop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\xop\RtmpSession.cpp">
+      <Filter>源文件\xop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\xop\RtmpPublisher.cpp">
+      <Filter>源文件\xop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\xop\H264Parser.cpp">
+      <Filter>源文件\xop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\xop\HttpFlvConnection.cpp">
+      <Filter>源文件\xop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\xop\HttpFlvServer.cpp">
+      <Filter>源文件\xop</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\net\Acceptor.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\BufferReader.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\BufferWriter.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\Channel.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\EpollTaskScheduler.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\EventLoop.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\log.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\Logger.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\MemoryManager.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\NetInterface.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\Pipe.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\RingBuffer.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\SelectTaskScheduler.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\Socket.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\SocketUtil.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\TaskScheduler.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\TcpConnection.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\TcpServer.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\TcpSocket.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\ThreadSafeQueue.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\Timer.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\Timestamp.h">
+      <Filter>源文件\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\xop\amf.h">
+      <Filter>源文件\xop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\xop\RtmpConnection.h">
+      <Filter>源文件\xop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\xop\RtmpServer.h">
+      <Filter>源文件\xop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\xop\RtmpSession.h">
+      <Filter>源文件\xop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\xop\rtmp.h">
+      <Filter>源文件\xop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\xop\RtmpPublisher.h">
+      <Filter>源文件\xop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\xop\H264Parser.h">
+      <Filter>源文件\xop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\xop\HttpFlvConnection.h">
+      <Filter>源文件\xop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\xop\HttpFlvServer.h">
+      <Filter>源文件\xop</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
