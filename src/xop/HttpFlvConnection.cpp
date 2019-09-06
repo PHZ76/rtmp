@@ -85,11 +85,13 @@ void HttpFlvConnection::onClose()
 
 
 bool HttpFlvConnection::sendMediaData(uint8_t type, uint64_t timestamp, std::shared_ptr<char> payload, uint32_t payloadSize)
-{
+{	 
 	if (payloadSize == 0)
 	{
 		return false;
 	}
+
+	m_isPlaying = true;
 
 	if (type == RTMP_AVC_SEQUENCE_HEADER)
 	{
@@ -130,9 +132,15 @@ bool HttpFlvConnection::sendMediaData(uint8_t type, uint64_t timestamp, std::sha
 	}
 	else if (type == RTMP_AUDIO)
 	{
-		if (!m_hasKeyFrame)
+		if (!m_hasKeyFrame && m_avcSequenceHeaderSize>0)
 		{
 			return true;
+		}
+
+		if (!m_hasFlvHeader)
+		{
+			this->sendFlvHeader();
+			this->sendFlvTag(FLV_TAG_TYPE_AUDIO, 0, m_aacSequenceHeader, m_aacSequenceHeaderSize);
 		}
 
 		this->sendFlvTag(FLV_TAG_TYPE_AUDIO, timestamp, payload, payloadSize);
