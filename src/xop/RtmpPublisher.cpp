@@ -128,7 +128,7 @@ int RtmpPublisher::openUrl(std::string url, int msec)
 	{		
 		std::shared_ptr<RtmpConnection> rtmpConn = m_rtmpConn;
 		sockfd = rtmpConn->fd();
-		m_eventLoop->addTriggerEvent([sockfd, rtmpConn]() {
+		m_taskScheduler->addTriggerEvent([sockfd, rtmpConn]() {
 			rtmpConn->disconnect();
 		});
 		m_rtmpConn = nullptr;
@@ -142,8 +142,9 @@ int RtmpPublisher::openUrl(std::string url, int msec)
 		return -1;
 	}
 
-	m_rtmpConn.reset(new RtmpConnection((RtmpPublisher*)this, m_eventLoop->getTaskScheduler().get(), tcpSocket.fd()));
-	m_eventLoop->addTriggerEvent([sockfd, this]() {
+	m_taskScheduler = m_eventLoop->getTaskScheduler().get();
+	m_rtmpConn.reset(new RtmpConnection((RtmpPublisher*)this, m_taskScheduler, tcpSocket.fd()));
+	m_taskScheduler->addTriggerEvent([sockfd, this]() {
 		m_rtmpConn->handshake();
 	});
 
@@ -168,7 +169,7 @@ void RtmpPublisher::close()
 	{		
 		std::shared_ptr<RtmpConnection> rtmpConn = m_rtmpConn;
 		SOCKET sockfd = rtmpConn->fd();
-		m_eventLoop->addTriggerEvent([sockfd, rtmpConn]() {
+		m_taskScheduler->addTriggerEvent([sockfd, rtmpConn]() {
 			rtmpConn->disconnect();
 		});
 		m_rtmpConn = nullptr;
@@ -229,10 +230,10 @@ int RtmpPublisher::pushVideoFrame(uint8_t *data, uint32_t size)
 			{
 				m_hasKeyFrame = true;
 				m_timestamp.reset();
-				m_eventLoop->addTriggerEvent([=]() {
+				//m_taskScheduler->addTriggerEvent([=]() {
 					m_rtmpConn->sendVideoData(0, m_avcSequenceHeader, m_avcSequenceHeaderSize);
 					m_rtmpConn->sendAudioData(0, m_aacSequenceHeader, m_aacSequenceHeaderSize);
-				});
+				//});
 			}
 			else
 			{
@@ -269,9 +270,9 @@ int RtmpPublisher::pushVideoFrame(uint8_t *data, uint32_t size)
 		memcpy(buffer + index, data, size);
 		index += size;
 		payloadSize = index;
-		m_eventLoop->addTriggerEvent([=]() {
+		//m_taskScheduler->addTriggerEvent([=]() {
 			m_rtmpConn->sendVideoData(timestamp, payload, payloadSize);
-		});
+		//});
 	}
 
 	return 0;
@@ -302,9 +303,9 @@ int RtmpPublisher::pushAudioFrame(uint8_t *data, uint32_t size)
 		payload.get()[0] = m_audioTag;
 		payload.get()[1] = 1; // 0: aac sequence header, 1: aac raw data
 		memcpy(payload.get() + 2, data, size);
-		m_eventLoop->addTriggerEvent([=]() {
+		//m_taskScheduler->addTriggerEvent([=]() {
 			m_rtmpConn->sendAudioData(timestamp, payload, payloadSize);
-		});
+		//});
 	}
 
 	return 0;

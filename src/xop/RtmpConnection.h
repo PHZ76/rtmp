@@ -108,7 +108,7 @@ private:
 	
     bool sendInvokeMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payloadSize);
     bool sendNotifyMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payloadSize);   
-    bool sendMetaData(AmfObjects& metaData);
+    bool sendMetaData(AmfObjects metaData);
 	bool isKeyFrame(std::shared_ptr<char> payload, uint32_t payloadSize);
     bool sendMediaData(uint8_t type, uint64_t timestamp, std::shared_ptr<char> payload, uint32_t payloadSize);
 	bool sendVideoData(uint64_t timestamp, std::shared_ptr<char> payload, uint32_t payloadSize);

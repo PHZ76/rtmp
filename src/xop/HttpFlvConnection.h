@@ -36,6 +36,7 @@ private:
 	int  sendFlvTag(uint8_t type, uint64_t timestamp, std::shared_ptr<char> payload, uint32_t payloadSize);
 
 	RtmpServer *m_rtmpServer = nullptr;
+	TaskScheduler* m_taskScheduler = nullptr;
 	std::string m_streamPath;
 
 	std::shared_ptr<char> m_avcSequenceHeader;

@@ -925,7 +925,7 @@ bool RtmpConnection::handleOnStatus(RtmpMessage& rtmpMsg)
 	return true;
 }
 
-bool RtmpConnection::sendMetaData(AmfObjects& metaData)
+bool RtmpConnection::sendMetaData(AmfObjects metaData)
 {
     if(this->isClosed())
     {
@@ -1052,37 +1052,40 @@ bool RtmpConnection::sendMediaData(uint8_t type, uint64_t timestamp, std::shared
 		m_aacSequenceHeaderSize = payloadSize;
 	}
 
-    if(!m_hasKeyFrame && m_avcSequenceHeaderSize>0
-		&& (type != RTMP_AVC_SEQUENCE_HEADER)
-		&& (type != RTMP_AAC_SEQUENCE_HEADER))
-    {
-		if (this->isKeyFrame(payload, payloadSize))
+	auto conn = std::dynamic_pointer_cast<RtmpConnection>(shared_from_this());
+	m_taskScheduler->addTriggerEvent([conn, type, timestamp, payload, payloadSize] {
+		if (!conn->m_hasKeyFrame && conn->m_avcSequenceHeaderSize > 0
+			&& (type != RTMP_AVC_SEQUENCE_HEADER)
+			&& (type != RTMP_AAC_SEQUENCE_HEADER))
 		{
-			m_hasKeyFrame = true;
+			if (conn->isKeyFrame(payload, payloadSize))
+			{
+				conn->m_hasKeyFrame = true;
+			}
+			else
+			{
+				return ;
+			}
 		}
-		else
+
+		RtmpMessage rtmpMsg;
+		rtmpMsg._timestamp = timestamp;
+		rtmpMsg.streamId = conn->m_streamId;
+		rtmpMsg.payload = payload;
+		rtmpMsg.length = payloadSize;
+
+		if (type == RTMP_VIDEO || type == RTMP_AVC_SEQUENCE_HEADER)
 		{
-			return true;
+			rtmpMsg.typeId = RTMP_VIDEO;
+			conn->sendRtmpChunks(RTMP_CHUNK_VIDEO_ID, rtmpMsg);
 		}
-    }
-
-	RtmpMessage rtmpMsg;
-	rtmpMsg._timestamp = timestamp;
-	rtmpMsg.streamId = m_streamId;
-	rtmpMsg.payload = payload;
-	rtmpMsg.length = payloadSize;
-
-    if(type == RTMP_VIDEO || type == RTMP_AVC_SEQUENCE_HEADER)
-    {
-		rtmpMsg.typeId = RTMP_VIDEO;
-		sendRtmpChunks(RTMP_CHUNK_VIDEO_ID, rtmpMsg);
-    }
-    else if(type == RTMP_AUDIO || type == RTMP_AAC_SEQUENCE_HEADER)
-    {
-		rtmpMsg.typeId = RTMP_AUDIO;
-		sendRtmpChunks(RTMP_CHUNK_AUDIO_ID, rtmpMsg);
-    }
-     
+		else if (type == RTMP_AUDIO || type == RTMP_AAC_SEQUENCE_HEADER)
+		{
+			rtmpMsg.typeId = RTMP_AUDIO;
+			conn->sendRtmpChunks(RTMP_CHUNK_AUDIO_ID, rtmpMsg);
+		}
+	});
+   
     return true;
 }
 
@@ -1093,13 +1096,17 @@ bool RtmpConnection::sendVideoData(uint64_t timestamp, std::shared_ptr<char> pay
 		return false;
 	}
 	
-	RtmpMessage rtmpMsg;
-	rtmpMsg.typeId = RTMP_VIDEO;
-	rtmpMsg._timestamp = timestamp;
-	rtmpMsg.streamId = m_streamId;
-	rtmpMsg.payload = payload;
-	rtmpMsg.length = payloadSize;
-	sendRtmpChunks(RTMP_CHUNK_VIDEO_ID, rtmpMsg);
+	auto conn = std::dynamic_pointer_cast<RtmpConnection>(shared_from_this());
+	m_taskScheduler->addTriggerEvent([conn, timestamp, payload, payloadSize] {
+		RtmpMessage rtmpMsg;
+		rtmpMsg.typeId = RTMP_VIDEO;
+		rtmpMsg._timestamp = timestamp;
+		rtmpMsg.streamId = conn->m_streamId;
+		rtmpMsg.payload = payload;
+		rtmpMsg.length = payloadSize;
+		conn->sendRtmpChunks(RTMP_CHUNK_VIDEO_ID, rtmpMsg);
+	});
+
 	return true;
 }
 
@@ -1110,13 +1117,16 @@ bool RtmpConnection::sendAudioData(uint64_t timestamp, std::shared_ptr<char> pay
 		return false;
 	}
 
-	RtmpMessage rtmpMsg;
-	rtmpMsg.typeId = RTMP_AUDIO;
-	rtmpMsg._timestamp = timestamp;
-	rtmpMsg.streamId = m_streamId;
-	rtmpMsg.payload = payload;
-	rtmpMsg.length = payloadSize;
-	sendRtmpChunks(RTMP_CHUNK_AUDIO_ID, rtmpMsg);
+	auto conn = std::dynamic_pointer_cast<RtmpConnection>(shared_from_this());
+	m_taskScheduler->addTriggerEvent([conn, timestamp, payload, payloadSize] {
+		RtmpMessage rtmpMsg;
+		rtmpMsg.typeId = RTMP_AUDIO;
+		rtmpMsg._timestamp = timestamp;
+		rtmpMsg.streamId = conn->m_streamId;
+		rtmpMsg.payload = payload;
+		rtmpMsg.length = payloadSize;
+		conn->sendRtmpChunks(RTMP_CHUNK_AUDIO_ID, rtmpMsg);
+	});
 	return true;
 }
 
