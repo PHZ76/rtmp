@@ -262,7 +262,7 @@ int RtmpConnection::parseChunkHeader(BufferReader& buffer)
 	uint8_t csid = flags & 0x3f; // chunk stream id
 	if (csid == 0) // csid [64, 319]
 	{
-		if ((bufSize - bytesUsed) < 2)
+		if (bufSize < (bytesUsed + 2))
 		{
 			return 0;
 		}
@@ -272,7 +272,7 @@ int RtmpConnection::parseChunkHeader(BufferReader& buffer)
 	}
 	else if (csid == 1) // csid [64, 65599]
 	{
-		if ((bufSize - bytesUsed) < 3)
+		if (bufSize  < (3 + bytesUsed))
 		{
 			return 0;
 		}
@@ -287,7 +287,7 @@ int RtmpConnection::parseChunkHeader(BufferReader& buffer)
 	}
 
 	uint32_t headerLen = kChunkMessageLen[fmt]; // basic_header + message_header 
-	if ((bufSize - bytesUsed) < headerLen)
+	if (bufSize < (headerLen + bytesUsed))
 	{
 		return 0;
 	}
@@ -324,7 +324,7 @@ int RtmpConnection::parseChunkHeader(BufferReader& buffer)
 		uint32_t extTimestamp = 0;
 		if (timestamp >= 0xffffff) // extended timestamp
 		{
-			if ((bufSize - bytesUsed) < 4)
+			if (bufSize < (4 + bytesUsed))
 			{
 				return 0;
 			}

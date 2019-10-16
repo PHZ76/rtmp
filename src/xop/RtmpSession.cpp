@@ -158,7 +158,7 @@ void RtmpSession::saveGop(uint8_t type, uint64_t timestamp, std::shared_ptr<char
 				}
 			}
 		}
-		else if (codecId == RTMP_CODEC_ID_H264)
+		else if (codecId == RTMP_CODEC_ID_H264 && gop != nullptr)
 		{
 			if (m_maxGopCacheLen > 0 && gop->size() >= 1 && gop->size() < m_maxGopCacheLen)
 			{
@@ -166,7 +166,7 @@ void RtmpSession::saveGop(uint8_t type, uint64_t timestamp, std::shared_ptr<char
 			}
 		}
 	}
-	else if (type == RTMP_AUDIO)
+	else if (type == RTMP_AUDIO && gop != nullptr)
 	{
 		uint8_t soundFormat = (payload[0] >> 4) & 0x0f;
 		uint8_t soundSize = (payload[0] >> 1) & 0x01;
