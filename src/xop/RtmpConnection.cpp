@@ -276,7 +276,7 @@ int RtmpConnection::parseChunkHeader(BufferReader& buffer)
 		{
 			return 0;
 		}
-		bytesUsed += buf[bytesUsed + 1] * 255 + buf[bytesUsed] + 64;
+		csid += buf[bytesUsed + 1] * 255 + buf[bytesUsed] + 64;
 		bytesUsed += 2;
 	}
 
@@ -380,7 +380,7 @@ int RtmpConnection::parseChunkBody(BufferReader& buffer)
 	uint32_t chunkSize = rtmpMsg.length - rtmpMsg.index;
 	if (chunkSize > m_inChunkSize)
 		chunkSize = m_inChunkSize;
-	if ((bufSize - bytesUsed) < chunkSize)
+	if (bufSize < (chunkSize + bytesUsed))
 	{
 		return 0;
 	}
