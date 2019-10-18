@@ -460,7 +460,7 @@ bool RtmpConnection::handleInvoke(RtmpMessage& rtmpMsg)
 	}
 
     std::string method = m_amfDec.getString();
-	LOG_INFO("[Method] %s\n", method.c_str());
+	//LOG_INFO("[Method] %s\n", method.c_str());
 
 	if (m_connMode == RTMP_PUBLISHER)
 	{
