@@ -3,6 +3,7 @@
 #endif
 
 #include "xop/RtmpServer.h"
+#include "xop/HttpFlvServer.h"
 #include "xop/RtmpPublisher.h"
 #include "xop/H264Parser.h"
 #include "net/EventLoop.h"
@@ -10,28 +11,37 @@
 #define TEST_RTMP_PUSHER 1
 #define PUSH_URL    "rtmp://127.0.0.1:1935/live/01"
 #define PUSH_FILE   "./test.h264"
+#define HTTP_URL    "http://127.0.0.1:8080/live/01.flv"
 
 int test_rtmp_publisher(xop::EventLoop *eventLoop);
 
 int main(int argc, char **argv)
 {
-    xop::EventLoop eventLoop;  
+	xop::EventLoop eventLoop;  
 
 	/* rtmp server example */
-    xop::RtmpServer server(&eventLoop, "0.0.0.0", 1935);    
-	server.setChunkSize(60000);
-	server.setGopCache(); /* enable gop cache */
+	xop::RtmpServer rtmpServer(&eventLoop, "0.0.0.0", 1935);    
+	rtmpServer.setChunkSize(60000); 
+	rtmpServer.setGopCache(); /* enable gop cache */
+
+	/* http-flv server example */
+	xop::HttpFlvServer httpFlvServer(&eventLoop, "0.0.0.0", 8080); 
+	httpFlvServer.attach(&rtmpServer);
 
 #if TEST_RTMP_PUSHER
+	/* rtmp pusher example */
 	std::thread t([&eventLoop] () {
 		test_rtmp_publisher(&eventLoop);
 	});
 	t.detach();
 #endif 
 
-    eventLoop.loop(); 
+	while (1)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	}
     
-    return 0;
+	return 0;
 }
 
 
@@ -245,13 +255,14 @@ int test_rtmp_publisher(xop::EventLoop *eventLoop)
 							memcpy(mediaInfo.pps.get(), pps.first, mediaInfo.ppsSize);
 
 							hasSpsPps = true;
-							publisher.setMediaInfo(mediaInfo); /* set sps pps */
-							printf("Start rtmp pusher, play url: %s\n\n", PUSH_URL);
+							publisher.setMediaInfo(mediaInfo); /* set sps pps */							
+							printf("Start rtmp pusher, rtmp url: %s , http-flv url: %s \n\n", PUSH_URL, HTTP_URL);							
 						}
 					}
 				}
 			}
-			else
+			
+			if (hasSpsPps)
 			{
 				publisher.pushVideoFrame(frameBuf, frameSize); /* send h.264 frame */
 			}

@@ -107,12 +107,15 @@ int RtmpPublisher::setMediaInfo(MediaInfo mediaInfo)
 int RtmpPublisher::openUrl(std::string url, int msec)
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
-
+	
+	static xop::Timestamp tp;
 	int timeout = msec;
 	if (timeout <= 0)
 	{
-		timeout = 5000;
+		timeout = 10000;
 	}
+
+	tp.reset();
 
 	if (this->parseRtmpUrl(url) != 0)
 	{
@@ -158,6 +161,35 @@ int RtmpPublisher::openUrl(std::string url, int msec)
 	{
 		m_hasKeyFrame = true;
 	}
+
+	timeout -= (int)tp.elapsed();
+	if (timeout < 0)
+	{
+		timeout = 1000;
+	}
+
+	
+	do
+	{
+		xop::Timer::sleep(10);
+		timeout -= 10;	
+		if (timeout <= 0)
+		{
+			break;
+		}
+	} while (!m_rtmpConn->isPublisher());
+	
+	if (!m_rtmpConn->isPublisher())
+	{
+		std::shared_ptr<RtmpConnection> rtmpConn = m_rtmpConn;
+		sockfd = rtmpConn->fd();
+		m_taskScheduler->addTriggerEvent([sockfd, rtmpConn]() {
+			rtmpConn->disconnect();
+		});
+		m_rtmpConn = nullptr;
+		return -1;
+	}
+
 	return 0;
 }
 

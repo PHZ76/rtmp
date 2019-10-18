@@ -23,12 +23,12 @@ namespace xop
 	
 class EventLoop 
 {
-    public:
-    EventLoop(int nThreads=1); //std::thread::hardware_concurrency()
+public:
+	EventLoop(const EventLoop&) = delete;
+	EventLoop &operator = (const EventLoop&) = delete; 
+    EventLoop(uint32_t nThreads=1); //std::thread::hardware_concurrency()
     virtual ~EventLoop();
 
-    void loop();
-    void quit();
     std::shared_ptr<TaskScheduler> getTaskScheduler();
 
     bool addTriggerEvent(TriggerEvent callback);
@@ -38,7 +38,11 @@ class EventLoop
     void removeChannel(ChannelPtr& channel);
 	
 private:
+	void loop();
+	void quit();
+
     std::mutex _mutex;
+	uint32_t _nThreads = 1;
     uint32_t _index = 1;
     std::vector<std::shared_ptr<TaskScheduler>> _taskSchedulers;
     std::vector<std::shared_ptr<std::thread>> _threads;
