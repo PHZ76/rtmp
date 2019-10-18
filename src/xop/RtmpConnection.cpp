@@ -207,11 +207,11 @@ bool RtmpConnection::handleChunk(BufferReader& buffer)
 		{ 
 			ret = parseChunkBody(buffer);
 			if (ret >= 0 && m_chunkStreamId>=0)
-			{
+			{				
 				auto& rtmpMsg = m_rtmpMessasges[m_chunkStreamId];
 				if (rtmpMsg.index == rtmpMsg.length)
 				{
-					if (rtmpMsg.timestamp == 0xffffff)
+					if (rtmpMsg.timestamp >= 0xffffff)
 					{
 						rtmpMsg._timestamp += rtmpMsg.extTimestamp;
 					}
@@ -219,7 +219,7 @@ bool RtmpConnection::handleChunk(BufferReader& buffer)
 					{
 						rtmpMsg._timestamp += rtmpMsg.timestamp;
 					}
-
+					
 					if (!handleMessage(rtmpMsg))
 					{
 						return false;
@@ -239,7 +239,7 @@ bool RtmpConnection::handleChunk(BufferReader& buffer)
 			return false;
 		}
 
-	} while (1);
+	} while (buffer.readableBytes() > 0);
 
 	return true;
 }
@@ -280,7 +280,7 @@ int RtmpConnection::parseChunkHeader(BufferReader& buffer)
 		bytesUsed += 2;
 	}
 
-	uint8_t fmt = flags >> 6; // message_header_type
+	uint8_t fmt = (flags >> 6); // message_header_type
 	if (fmt >= 4)
 	{
 		return -1;
@@ -318,20 +318,20 @@ int RtmpConnection::parseChunkHeader(BufferReader& buffer)
 		rtmpMsg.streamId = readUint24LE((char*)header.streamId);
 	}
 
-	if (fmt == RTMP_CHUNK_TYPE_0 || fmt == RTMP_CHUNK_TYPE_1 || fmt == RTMP_CHUNK_TYPE_2)
+	uint32_t timestamp = readUint24BE((char*)header.timestamp);
+	uint32_t extTimestamp = 0;
+	if (timestamp >= 0xffffff || rtmpMsg.timestamp >= 0xffffff)
 	{
-		uint32_t timestamp = readUint24BE((char*)header.timestamp);		
-		uint32_t extTimestamp = 0;
-		if (timestamp >= 0xffffff) // extended timestamp
+		if (bufSize < (4 + bytesUsed))
 		{
-			if (bufSize < (4 + bytesUsed))
-			{
-				return 0;
-			}
-			extTimestamp = readUint32BE((char*)buf + bytesUsed);
-			bytesUsed += 4;
+			return 0;
 		}
-		
+		extTimestamp = readUint32BE((char*)buf + bytesUsed);
+		bytesUsed += 4;
+	}
+
+	if (rtmpMsg.index == 0) /* first chunk */
+	{
 		if (fmt == RTMP_CHUNK_TYPE_0)
 		{
 			/* absolute timestamp */
@@ -342,7 +342,7 @@ int RtmpConnection::parseChunkHeader(BufferReader& buffer)
 		else
 		{
 			/* relative timestamp (timestamp delta) */
-			if (rtmpMsg.timestamp >= 0xffffff) // extended timestamp
+			if (rtmpMsg.timestamp >= 0xffffff)
 			{
 				rtmpMsg.extTimestamp += extTimestamp;
 			}
@@ -379,7 +379,10 @@ int RtmpConnection::parseChunkBody(BufferReader& buffer)
 
 	uint32_t chunkSize = rtmpMsg.length - rtmpMsg.index;
 	if (chunkSize > m_inChunkSize)
+	{
 		chunkSize = m_inChunkSize;
+	}
+
 	if (bufSize < (chunkSize + bytesUsed))
 	{
 		return 0;
@@ -393,7 +396,10 @@ int RtmpConnection::parseChunkBody(BufferReader& buffer)
 	memcpy(rtmpMsg.payload.get() + rtmpMsg.index, buf + bytesUsed, chunkSize);
 	bytesUsed += chunkSize;
 	rtmpMsg.index += chunkSize;
-	m_chunkParseState = PARSE_HEADER;
+	if (rtmpMsg.index >= rtmpMsg.length || rtmpMsg.index%m_inChunkSize == 0)
+	{
+		m_chunkParseState = PARSE_HEADER;
+	}	
 	buffer.retrieve(bytesUsed);
 	return bytesUsed;
 }
@@ -454,7 +460,7 @@ bool RtmpConnection::handleInvoke(RtmpMessage& rtmpMsg)
 	}
 
     std::string method = m_amfDec.getString();
-	//LOG_INFO("[Method] %s\n", method.c_str());
+	LOG_INFO("[Method] %s\n", method.c_str());
 
 	if (m_connMode == RTMP_PUBLISHER)
 	{
