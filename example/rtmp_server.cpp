@@ -8,7 +8,8 @@
 #include "xop/H264Parser.h"
 #include "net/EventLoop.h"
 
-#define TEST_RTMP_PUSHER 1
+#define TEST_RTMP_PUSHER  1
+#define TEST_MULTI_THREAD 1
 #define PUSH_URL    "rtmp://127.0.0.1:1935/live/01"
 #define PUSH_FILE   "./test.h264"
 #define HTTP_URL    "http://127.0.0.1:8080/live/01.flv"
@@ -17,12 +18,16 @@ int test_rtmp_publisher(xop::EventLoop *eventLoop);
 
 int main(int argc, char **argv)
 {
-	xop::EventLoop eventLoop;  
+	int count = 1; 
+#if TEST_MULTI_THREAD
+	count = std::thread::hardware_concurrency();
+#endif
+	xop::EventLoop eventLoop(count);
 
 	/* rtmp server example */
 	xop::RtmpServer rtmpServer(&eventLoop, "0.0.0.0", 1935);    
 	rtmpServer.setChunkSize(60000); 
-	rtmpServer.setGopCache(); /* enable gop cache */
+	//rtmpServer.setGopCache(); /* enable gop cache */
 
 	/* http-flv server example */
 	xop::HttpFlvServer httpFlvServer(&eventLoop, "0.0.0.0", 8080); 
@@ -220,7 +225,7 @@ int test_rtmp_publisher(xop::EventLoop *eventLoop)
 	xop::MediaInfo mediaInfo;
 	xop::RtmpPublisher publisher(eventLoop);
 	publisher.setChunkSize(60000);
-	if (publisher.openUrl(PUSH_URL) < 0)
+	if (publisher.openUrl(PUSH_URL, 5000) < 0)
 	{
 		printf("Open url %s failed.\n", PUSH_URL);
 		return -1;
