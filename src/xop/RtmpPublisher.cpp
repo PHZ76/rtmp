@@ -119,18 +119,16 @@ int RtmpPublisher::openUrl(std::string url, int msec)
 
 	if (this->parseRtmpUrl(url) != 0)
 	{
-		LOG_INFO("[RtmpPublisher] rtmp url:%s was illegal.\n", url.c_str());
+		LOG_INFO("[RtmpPublisher] rtmp url(%s) was illegal.\n", url.c_str());
 		return -1;
 	}
 
 	//LOG_INFO("[RtmpPublisher] ip:%s, port:%hu, stream path:%s\n", m_ip.c_str(), m_port, m_streamPath.c_str());
 
-	SOCKET sockfd = 0;
-
 	if (m_rtmpConn != nullptr)
 	{		
 		std::shared_ptr<RtmpConnection> rtmpConn = m_rtmpConn;
-		sockfd = rtmpConn->fd();
+		SOCKET sockfd = rtmpConn->fd();
 		m_taskScheduler->addTriggerEvent([sockfd, rtmpConn]() {
 			rtmpConn->disconnect();
 		});
@@ -139,7 +137,7 @@ int RtmpPublisher::openUrl(std::string url, int msec)
 
 	TcpSocket tcpSocket;
 	tcpSocket.create();
-	if (!tcpSocket.connect(m_ip, m_port, timeout)) // 3s timeout
+	if (!tcpSocket.connect(m_ip, m_port, timeout))
 	{
 		tcpSocket.close();
 		return -1;
@@ -147,20 +145,9 @@ int RtmpPublisher::openUrl(std::string url, int msec)
 
 	m_taskScheduler = m_eventLoop->getTaskScheduler().get();
 	m_rtmpConn.reset(new RtmpConnection((RtmpPublisher*)this, m_taskScheduler, tcpSocket.fd()));
-	m_taskScheduler->addTriggerEvent([sockfd, this]() {
+	m_taskScheduler->addTriggerEvent([this]() {
 		m_rtmpConn->handshake();
 	});
-
-	m_videoTimestamp = 0;
-	m_audioTimestamp = 0;
-	if (m_mediaIinfo.videoCodecId == RTMP_CODEC_ID_H264)
-	{
-		m_hasKeyFrame = false;
-	}
-	else
-	{
-		m_hasKeyFrame = true;
-	}
 
 	timeout -= (int)tp.elapsed();
 	if (timeout < 0)
@@ -168,26 +155,29 @@ int RtmpPublisher::openUrl(std::string url, int msec)
 		timeout = 1000;
 	}
 
-	
 	do
 	{
-		xop::Timer::sleep(10);
-		timeout -= 10;	
-		if (timeout <= 0)
-		{
-			break;
-		}
-	} while (!m_rtmpConn->isPublisher());
+		xop::Timer::sleep(100);
+		timeout -= 100;	
+	} while (!m_rtmpConn->isPublisher() && timeout>0);
 	
 	if (!m_rtmpConn->isPublisher())
 	{
 		std::shared_ptr<RtmpConnection> rtmpConn = m_rtmpConn;
-		sockfd = rtmpConn->fd();
+		SOCKET sockfd = rtmpConn->fd();
 		m_taskScheduler->addTriggerEvent([sockfd, rtmpConn]() {
 			rtmpConn->disconnect();
 		});
 		m_rtmpConn = nullptr;
 		return -1;
+	}
+
+	m_videoTimestamp = 0;
+	m_audioTimestamp = 0;
+	m_hasKeyFrame = true;
+	if (m_mediaIinfo.videoCodecId == RTMP_CODEC_ID_H264)
+	{
+		m_hasKeyFrame = false;
 	}
 
 	return 0;

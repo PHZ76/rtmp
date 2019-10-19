@@ -9,7 +9,7 @@
 #include "net/EventLoop.h"
 
 #define TEST_RTMP_PUSHER  1
-#define TEST_MULTI_THREAD 1
+#define TEST_MULTI_THREAD 0
 #define PUSH_URL    "rtmp://127.0.0.1:1935/live/01"
 #define PUSH_FILE   "./test.h264"
 #define HTTP_URL    "http://127.0.0.1:8080/live/01.flv"
@@ -236,7 +236,7 @@ int test_rtmp_publisher(xop::EventLoop *eventLoop)
 	bool hasSpsPps = false;
 	uint8_t *frameBuf = new uint8_t[bufSize];
 
-	while (1)
+	while (publisher.isConnected())
 	{
 		int frameSize = h264File.readFrame((char*)frameBuf, bufSize, &bEndOfFrame);
 		if (frameSize > 0)
