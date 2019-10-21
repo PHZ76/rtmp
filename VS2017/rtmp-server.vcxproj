@@ -41,6 +41,7 @@
     <ClCompile Include="..\src\xop\H264Parser.cpp" />
     <ClCompile Include="..\src\xop\HttpFlvConnection.cpp" />
     <ClCompile Include="..\src\xop\HttpFlvServer.cpp" />
+    <ClCompile Include="..\src\xop\RtmpClient.cpp" />
     <ClCompile Include="..\src\xop\RtmpConnection.cpp" />
     <ClCompile Include="..\src\xop\RtmpPublisher.cpp" />
     <ClCompile Include="..\src\xop\RtmpServer.cpp" />
@@ -74,6 +75,7 @@
     <ClInclude Include="..\src\xop\HttpFlvConnection.h" />
     <ClInclude Include="..\src\xop\HttpFlvServer.h" />
     <ClInclude Include="..\src\xop\rtmp.h" />
+    <ClInclude Include="..\src\xop\RtmpClient.h" />
     <ClInclude Include="..\src\xop\RtmpConnection.h" />
     <ClInclude Include="..\src\xop\RtmpPublisher.h" />
     <ClInclude Include="..\src\xop\RtmpServer.h" />

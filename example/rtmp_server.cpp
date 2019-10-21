@@ -27,7 +27,7 @@ int main(int argc, char **argv)
 	/* rtmp server example */
 	xop::RtmpServer rtmpServer(&eventLoop, "0.0.0.0", 1935);    
 	rtmpServer.setChunkSize(60000); 
-	//rtmpServer.setGopCache(); /* enable gop cache */
+	rtmpServer.setGopCache(); /* enable gop cache */
 
 	/* http-flv server example */
 	xop::HttpFlvServer httpFlvServer(&eventLoop, "0.0.0.0", 8080); 

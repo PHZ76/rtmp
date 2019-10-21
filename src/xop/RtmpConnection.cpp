@@ -1,6 +1,7 @@
 #include "RtmpConnection.h"
 #include "RtmpServer.h"
 #include "RtmpPublisher.h"
+#include "RtmpClient.h"
 #include "net/Logger.h"
 #include <random>
 
@@ -32,6 +33,19 @@ RtmpConnection::RtmpConnection(RtmpPublisher *rtmpPublisher, TaskScheduler *task
 	m_streamPath = m_rtmpPublisher->getStreamPath();
 	m_streamName = m_rtmpPublisher->getStreamName();
 	m_app = m_rtmpPublisher->getApp();
+}
+
+RtmpConnection::RtmpConnection(RtmpClient *rtmpClient, TaskScheduler *taskScheduler, SOCKET sockfd)
+	: RtmpConnection(taskScheduler, sockfd)
+{
+	m_rtmpClient = rtmpClient;
+	m_connMode = RTMP_CLIENT;
+	m_connState = HANDSHAKE_S0S1S2;
+	m_chunkParseState = PARSE_HEADER;
+	m_maxChunkSize = m_rtmpClient->getChunkSize();
+	m_streamPath = m_rtmpClient->getStreamPath();
+	m_streamName = m_rtmpClient->getStreamName();
+	m_app = m_rtmpClient->getApp();
 }
 
 RtmpConnection::RtmpConnection(TaskScheduler *taskScheduler, SOCKET sockfd)
@@ -462,7 +476,7 @@ bool RtmpConnection::handleInvoke(RtmpMessage& rtmpMsg)
     std::string method = m_amfDec.getString();
 	//LOG_INFO("[Method] %s\n", method.c_str());
 
-	if (m_connMode == RTMP_PUBLISHER)
+	if (m_connMode == RTMP_PUBLISHER || m_connMode == RTMP_CLIENT)
 	{
 		bytesUsed += m_amfDec.decode(rtmpMsg.payload.get() + bytesUsed, rtmpMsg.length - bytesUsed);
 		if (method == "_result")
@@ -667,6 +681,21 @@ bool RtmpConnection::publish()
 	return true;
 }
 
+bool RtmpConnection::play()
+{
+	AmfObjects objects;
+	m_amfEnc.reset();
+
+	m_amfEnc.encodeString("play", 4);
+	m_amfEnc.encodeNumber((double)(++m_number));
+	m_amfEnc.encodeObjects(objects);
+	m_amfEnc.encodeString(m_streamName.c_str(), (int)m_streamName.size());
+
+	m_connState = START_PLAY;
+	sendInvokeMessage(RTMP_CHUNK_INVOKE_ID, m_amfEnc.data(), m_amfEnc.size());
+	return true;
+}
+
 bool RtmpConnection::deleteStream()
 {
 	AmfObjects objects;
@@ -781,6 +810,7 @@ bool RtmpConnection::handlePublish()
     else
     {
         m_connState = START_PUBLISH;
+		m_isPublishing = true;
     }
 
     auto sessionPtr = m_rtmpServer->getSession(m_streamPath); 
@@ -865,6 +895,7 @@ bool RtmpConnection::handDeleteStream()
         }  
 
 		m_isPlaying = false;
+		m_isPublishing = false;
 		m_hasKeyFrame = false;
         m_rtmpMessasges.clear();
     }
@@ -893,7 +924,15 @@ bool RtmpConnection::handleResult(RtmpMessage& rtmpMsg)
 		if (m_amfDec.getNumber() > 0)
 		{
 			m_streamId = (uint32_t)m_amfDec.getNumber();
-			this->publish();
+			if (m_connMode == RTMP_PUBLISHER)
+			{
+				this->publish();
+			}
+			else if (m_connMode == RTMP_CLIENT)
+			{
+				this->play();
+			}
+
 			ret = true;
 		}
 	}
@@ -905,14 +944,32 @@ bool RtmpConnection::handleOnStatus(RtmpMessage& rtmpMsg)
 {
 	bool ret = true;
 
-	if (m_connState == START_PUBLISH)
+	if (m_connState == START_PUBLISH || m_connState == START_PLAY)
 	{
 		if (m_amfDec.hasObject("code"))
 		{
 			AmfObject amfObj = m_amfDec.getObject("code");
-			if (amfObj.amf_string != "NetStream.Publish.Start")
+			if (m_connMode == RTMP_PUBLISHER)
 			{
-				ret = false;
+				if (amfObj.amf_string != "NetStream.Publish.Start")
+				{
+					ret = false;
+				}		
+				else
+				{
+					m_isPublishing = true;
+				}
+			}
+			else if (m_connMode == RTMP_CLIENT)
+			{
+				if (amfObj.amf_string != "NetStream.Play.Reset" && amfObj.amf_string != "NetStream.Play.Start")
+				{
+					ret = false;
+				}
+				else
+				{
+					m_isPlaying = true;
+				}
 			}
 		}
 	}

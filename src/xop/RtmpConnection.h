@@ -12,6 +12,7 @@ namespace xop
 
 class RtmpServer;
 class RtmpPublisher;
+class RtmpClient;
 
 class RtmpConnection : public TcpConnection
 {
@@ -39,10 +40,12 @@ public:
 	{
 		RTMP_SERVER, 
 		RTMP_PUBLISHER,
+		RTMP_CLIENT
 	};
 
     RtmpConnection(RtmpServer* rtmpServer, TaskScheduler* taskScheduler, SOCKET sockfd);
 	RtmpConnection(RtmpPublisher *rtmpPublisher, TaskScheduler *taskScheduler, SOCKET sockfd);
+	RtmpConnection(RtmpClient *rtmpPublisher, TaskScheduler *taskScheduler, SOCKET sockfd);
     ~RtmpConnection();
 
     std::string getStreamPath() const
@@ -66,10 +69,14 @@ public:
 	bool isPlaying() const
 	{ return m_isPlaying; }
 
+	bool isPublishing() const
+	{ return m_isPublishing; }
+
 private:
     friend class RtmpSession;
 	friend class RtmpServer;
 	friend class RtmpPublisher;
+	friend class RtmpClient;
 
 	RtmpConnection(TaskScheduler *taskScheduler, SOCKET sockfd);
 
@@ -91,6 +98,7 @@ private:
 	bool connect();
 	bool cretaeStream();
 	bool publish();
+	bool play();
 	bool deleteStream();
 
     bool handleConnect();
@@ -119,6 +127,7 @@ private:
 
 	RtmpServer *m_rtmpServer = nullptr;
 	RtmpPublisher *m_rtmpPublisher = nullptr;
+	RtmpClient *m_rtmpClient = nullptr;
 	ConnectionMode m_connMode = RTMP_SERVER;
 	TaskScheduler *m_taskScheduler;
 	std::shared_ptr<xop::Channel> m_channelPtr;
@@ -143,6 +152,7 @@ private:
 	int m_chunkStreamId = 0;
 
 	bool m_isPlaying = false;
+	bool m_isPublishing = false;
 	bool m_hasKeyFrame = false;
 	std::shared_ptr<char> m_avcSequenceHeader;
 	std::shared_ptr<char> m_aacSequenceHeader;

@@ -159,9 +159,9 @@ int RtmpPublisher::openUrl(std::string url, int msec)
 	{
 		xop::Timer::sleep(100);
 		timeout -= 100;	
-	} while (!m_rtmpConn->isPublisher() && timeout>0);
+	} while (!m_rtmpConn->isPublishing() && timeout>0);
 	
-	if (!m_rtmpConn->isPublisher())
+	if (!m_rtmpConn->isPublishing())
 	{
 		std::shared_ptr<RtmpConnection> rtmpConn = m_rtmpConn;
 		SOCKET sockfd = rtmpConn->fd();
