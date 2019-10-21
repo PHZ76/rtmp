@@ -5,12 +5,14 @@
 #include "xop/RtmpServer.h"
 #include "xop/HttpFlvServer.h"
 #include "xop/RtmpPublisher.h"
+#include "xop/RtmpClient.h"
 #include "xop/H264Parser.h"
 #include "net/EventLoop.h"
 
 #define TEST_RTMP_PUSHER  1
+#define TEST_RTMP_CLIENT  0
 #define TEST_MULTI_THREAD 0
-#define PUSH_URL    "rtmp://127.0.0.1:1935/live/01"
+#define RTMP_URL    "rtmp://127.0.0.1:1935/live/01"
 #define PUSH_FILE   "./test.h264"
 #define HTTP_URL    "http://127.0.0.1:8080/live/01.flv"
 
@@ -27,7 +29,7 @@ int main(int argc, char **argv)
 	/* rtmp server example */
 	xop::RtmpServer rtmpServer(&eventLoop, "0.0.0.0", 1935);    
 	rtmpServer.setChunkSize(60000); 
-	rtmpServer.setGopCache(); /* enable gop cache */
+	//rtmpServer.setGopCache(); /* enable gop cache */
 
 	/* http-flv server example */
 	xop::HttpFlvServer httpFlvServer(&eventLoop, "0.0.0.0", 8080); 
@@ -40,6 +42,19 @@ int main(int argc, char **argv)
 	});
 	t.detach();
 #endif 
+
+#if	TEST_RTMP_CLIENT
+	xop::RtmpClient rtmpClient(&eventLoop);
+	rtmpClient.setFrameCB([](uint8_t* payload, uint32_t length, uint8_t codecId, uint32_t timestamp) {
+		// handle frame ...
+	});
+
+	std::string status;
+	if (rtmpClient.openUrl(RTMP_URL, 3000, status) != 0)
+	{
+		printf("Open url %s failed, status: %s\n", RTMP_URL, status.c_str());
+	}
+#endif
 
 	while (1)
 	{
@@ -225,9 +240,11 @@ int test_rtmp_publisher(xop::EventLoop *eventLoop)
 	xop::MediaInfo mediaInfo;
 	xop::RtmpPublisher publisher(eventLoop);
 	publisher.setChunkSize(60000);
-	if (publisher.openUrl(PUSH_URL, 5000) < 0)
+
+	std::string status;
+	if (publisher.openUrl(RTMP_URL, 3000, status) < 0)
 	{
-		printf("Open url %s failed.\n", PUSH_URL);
+		printf("Open url %s failed, status: %s\n", RTMP_URL, status.c_str());
 		return -1;
 	}
 
@@ -261,7 +278,7 @@ int test_rtmp_publisher(xop::EventLoop *eventLoop)
 
 							hasSpsPps = true;
 							publisher.setMediaInfo(mediaInfo); /* set sps pps */							
-							printf("Start rtmp pusher, rtmp url: %s , http-flv url: %s \n\n", PUSH_URL, HTTP_URL);							
+							printf("Start rtmp pusher, rtmp url: %s , http-flv url: %s \n\n", RTMP_URL, HTTP_URL);
 						}
 					}
 				}

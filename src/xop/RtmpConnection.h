@@ -17,6 +17,8 @@ class RtmpClient;
 class RtmpConnection : public TcpConnection
 {
 public:    
+	using PlayCallback = std::function<void(uint8_t* payload, uint32_t length, uint8_t codecId, uint32_t timestamp)>;
+
     enum ConnectionState
     {
         HANDSHAKE_C0C1, 
@@ -27,7 +29,7 @@ public:
 		START_CREATE_STREAM,
 		START_DELETE_STREAM,
         START_PLAY,
-        START_PUBLISH
+        START_PUBLISH,
     };
       
 	enum ChunkParseState
@@ -72,6 +74,15 @@ public:
 	bool isPublishing() const
 	{ return m_isPublishing; }
 
+	std::string getStatus()
+	{ 
+		if (m_status == "")
+		{
+			return "unknown error";
+		}
+		return m_status; 
+	}
+
 private:
     friend class RtmpSession;
 	friend class RtmpServer;
@@ -113,7 +124,8 @@ private:
     void setPeerBandwidth();
     void sendAcknowledgement();
     void setChunkSize();
-	
+	void setPlayCB(const PlayCallback& cb);
+
     bool sendInvokeMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payloadSize);
     bool sendNotifyMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payloadSize);   
     bool sendMetaData(AmfObjects metaData);
@@ -143,6 +155,7 @@ private:
 	std::string m_app;
 	std::string m_streamName;
 	std::string m_streamPath;
+	std::string m_status;
 	AmfObjects m_metaData;
 	AmfDecoder m_amfDec;
 	AmfEncoder m_amfEnc;
@@ -158,6 +171,7 @@ private:
 	std::shared_ptr<char> m_aacSequenceHeader;
 	uint32_t m_avcSequenceHeaderSize = 0;
 	uint32_t m_aacSequenceHeaderSize = 0;
+	PlayCallback m_playCB;
 
 	const uint32_t kStreamId = 1;
 	const int kChunkMessageLen[4] = { 11, 7, 3, 0 };

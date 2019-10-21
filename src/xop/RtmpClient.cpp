@@ -20,7 +20,7 @@ void RtmpClient::setFrameCB(const FrameCallback& cb)
 	m_frameCB = cb;
 }
 
-int RtmpClient::openUrl(std::string url, int msec)
+int RtmpClient::openUrl(std::string url, int msec, std::string& status)
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
 
@@ -60,8 +60,12 @@ int RtmpClient::openUrl(std::string url, int msec)
 	}
 
 	m_taskScheduler = m_eventLoop->getTaskScheduler().get();
-	m_rtmpConn.reset(new RtmpConnection((RtmpPublisher*)this, m_taskScheduler, tcpSocket.fd()));
+	m_rtmpConn.reset(new RtmpConnection((RtmpClient*)this, m_taskScheduler, tcpSocket.fd()));
 	m_taskScheduler->addTriggerEvent([this]() {
+		if (m_frameCB)
+		{
+			m_rtmpConn->setPlayCB(m_frameCB);
+		}
 		m_rtmpConn->handshake();
 	});
 
@@ -75,8 +79,9 @@ int RtmpClient::openUrl(std::string url, int msec)
 	{
 		xop::Timer::sleep(100);
 		timeout -= 100;
-	} while (!m_rtmpConn->isPlaying() && timeout > 0);
+	} while (!m_rtmpConn->isClosed() && !m_rtmpConn->isPlaying() && timeout > 0);
 
+	status = m_rtmpConn->getStatus();
 	if (!m_rtmpConn->isPlaying())
 	{
 		std::shared_ptr<RtmpConnection> rtmpConn = m_rtmpConn;

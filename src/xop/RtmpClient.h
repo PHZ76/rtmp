@@ -13,7 +13,7 @@ namespace xop
 class RtmpClient : public Rtmp
 {
 public:
-	using FrameCallback = std::function<void()>;
+	using FrameCallback = std::function<void(uint8_t* payload, uint32_t length, uint8_t codecId, uint32_t timestamp)>;
 
 	RtmpClient & operator=(const RtmpClient &) = delete;
 	RtmpClient(const RtmpClient &) = delete;
@@ -21,7 +21,7 @@ public:
 	~RtmpClient();
 
 	void setFrameCB(const FrameCallback& cb);
-	int openUrl(std::string url, int msec = 0);
+	int openUrl(std::string url, int msec, std::string& status);
 	void close();
 	bool isConnected();
 

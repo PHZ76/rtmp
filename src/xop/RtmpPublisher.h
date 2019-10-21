@@ -18,7 +18,7 @@ public:
 
 	int setMediaInfo(MediaInfo mediaInfo);
 
-	int openUrl(std::string url, int msec = 0);
+	int openUrl(std::string url, int msec, std::string& status);
 	void close();
 	bool isConnected();
 

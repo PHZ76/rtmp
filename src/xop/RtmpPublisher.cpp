@@ -104,7 +104,7 @@ int RtmpPublisher::setMediaInfo(MediaInfo mediaInfo)
 	return 0;
 }
 
-int RtmpPublisher::openUrl(std::string url, int msec)
+int RtmpPublisher::openUrl(std::string url, int msec, std::string& status)
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
 	
@@ -159,8 +159,9 @@ int RtmpPublisher::openUrl(std::string url, int msec)
 	{
 		xop::Timer::sleep(100);
 		timeout -= 100;	
-	} while (!m_rtmpConn->isPublishing() && timeout>0);
+	} while (!m_rtmpConn->isClosed() && !m_rtmpConn->isPublishing() && timeout>0);
 	
+	status = m_rtmpConn->getStatus();
 	if (!m_rtmpConn->isPublishing())
 	{
 		std::shared_ptr<RtmpConnection> rtmpConn = m_rtmpConn;
