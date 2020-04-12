@@ -14,6 +14,12 @@ RtmpClient::~RtmpClient()
 
 }
 
+std::shared_ptr<RtmpClient> RtmpClient::create(xop::EventLoop* loop)
+{
+	std::shared_ptr<RtmpClient> client(new RtmpClient(loop));
+	return client;
+}
+
 void RtmpClient::setFrameCB(const FrameCallback& cb)
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
@@ -44,24 +50,24 @@ int RtmpClient::openUrl(std::string url, int msec, std::string& status)
 	if (m_rtmpConn != nullptr)
 	{
 		std::shared_ptr<RtmpConnection> rtmpConn = m_rtmpConn;
-		SOCKET sockfd = rtmpConn->fd();
-		m_taskScheduler->addTriggerEvent([sockfd, rtmpConn]() {
-			rtmpConn->disconnect();
+		SOCKET sockfd = rtmpConn->GetSocket();
+		m_taskScheduler->AddTriggerEvent([sockfd, rtmpConn]() {
+			rtmpConn->Disconnect();
 		});
 		m_rtmpConn = nullptr;
 	}
 
 	TcpSocket tcpSocket;
-	tcpSocket.create();
-	if (!tcpSocket.connect(m_ip, m_port, timeout))
+	tcpSocket.Create();
+	if (!tcpSocket.Connect(m_ip, m_port, timeout))
 	{
-		tcpSocket.close();
+		tcpSocket.Close();
 		return -1;
 	}
 
-	m_taskScheduler = m_eventLoop->getTaskScheduler().get();
-	m_rtmpConn.reset(new RtmpConnection((RtmpClient*)this, m_taskScheduler, tcpSocket.fd()));
-	m_taskScheduler->addTriggerEvent([this]() {
+	m_taskScheduler = m_eventLoop->GetTaskScheduler().get();
+	m_rtmpConn.reset(new RtmpConnection(shared_from_this(), m_taskScheduler, tcpSocket.GetSocket()));
+	m_taskScheduler->AddTriggerEvent([this]() {
 		if (m_frameCB)
 		{
 			m_rtmpConn->setPlayCB(m_frameCB);
@@ -77,17 +83,17 @@ int RtmpClient::openUrl(std::string url, int msec, std::string& status)
 
 	do
 	{
-		xop::Timer::sleep(100);
+		xop::Timer::Sleep(100);
 		timeout -= 100;
-	} while (!m_rtmpConn->isClosed() && !m_rtmpConn->isPlaying() && timeout > 0);
+	} while (!m_rtmpConn->IsClosed() && !m_rtmpConn->isPlaying() && timeout > 0);
 
 	status = m_rtmpConn->getStatus();
 	if (!m_rtmpConn->isPlaying())
 	{
 		std::shared_ptr<RtmpConnection> rtmpConn = m_rtmpConn;
-		SOCKET sockfd = rtmpConn->fd();
-		m_taskScheduler->addTriggerEvent([sockfd, rtmpConn]() {
-			rtmpConn->disconnect();
+		SOCKET sockfd = rtmpConn->GetSocket();
+		m_taskScheduler->AddTriggerEvent([sockfd, rtmpConn]() {
+			rtmpConn->Disconnect();
 		});
 		m_rtmpConn = nullptr;
 		return -1;
@@ -103,9 +109,9 @@ void RtmpClient::close()
 	if (m_rtmpConn != nullptr)
 	{
 		std::shared_ptr<RtmpConnection> rtmpConn = m_rtmpConn;
-		SOCKET sockfd = rtmpConn->fd();
-		m_taskScheduler->addTriggerEvent([sockfd, rtmpConn]() {
-			rtmpConn->disconnect();
+		SOCKET sockfd = rtmpConn->GetSocket();
+		m_taskScheduler->AddTriggerEvent([sockfd, rtmpConn]() {
+			rtmpConn->Disconnect();
 		});
 	}
 }
@@ -116,7 +122,7 @@ bool RtmpClient::isConnected()
 
 	if (m_rtmpConn != nullptr)
 	{
-		return (!m_rtmpConn->isClosed());
+		return (!m_rtmpConn->IsClosed());
 	}
 
 	return false;

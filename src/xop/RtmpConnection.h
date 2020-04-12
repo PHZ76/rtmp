@@ -45,9 +45,9 @@ public:
 		RTMP_CLIENT
 	};
 
-    RtmpConnection(RtmpServer* rtmpServer, TaskScheduler* taskScheduler, SOCKET sockfd);
-	RtmpConnection(RtmpPublisher *rtmpPublisher, TaskScheduler *taskScheduler, SOCKET sockfd);
-	RtmpConnection(RtmpClient *rtmpPublisher, TaskScheduler *taskScheduler, SOCKET sockfd);
+    RtmpConnection(std::shared_ptr<RtmpServer> rtmpServer, TaskScheduler* taskScheduler, SOCKET sockfd);
+	RtmpConnection(std::shared_ptr<RtmpPublisher> rtmpPublisher, TaskScheduler *taskScheduler, SOCKET sockfd);
+	RtmpConnection(std::shared_ptr<RtmpClient> rtmpClient, TaskScheduler *taskScheduler, SOCKET sockfd);
     ~RtmpConnection();
 
     std::string getStreamPath() const
@@ -137,9 +137,10 @@ private:
     int createChunkBasicHeader(uint8_t fmt, uint32_t csid, char* buf);
     int createChunkMessageHeader(uint8_t fmt, RtmpMessage& rtmpMsg, char* buf);   
 
-	RtmpServer *m_rtmpServer = nullptr;
-	RtmpPublisher *m_rtmpPublisher = nullptr;
-	RtmpClient *m_rtmpClient = nullptr;
+	std::weak_ptr<RtmpServer> m_rtmpServer;
+	std::weak_ptr<RtmpPublisher> m_rtmpPublisher;
+	std::weak_ptr<RtmpClient> m_rtmpClient;
+
 	ConnectionMode m_connMode = RTMP_SERVER;
 	TaskScheduler *m_taskScheduler;
 	std::shared_ptr<xop::Channel> m_channelPtr;

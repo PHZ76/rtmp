@@ -10,14 +10,12 @@
 namespace xop
 {
 
-class RtmpClient : public Rtmp
+class RtmpClient : public Rtmp, public std::enable_shared_from_this<RtmpClient>
 {
 public:
 	using FrameCallback = std::function<void(uint8_t* payload, uint32_t length, uint8_t codecId, uint32_t timestamp)>;
 
-	RtmpClient & operator=(const RtmpClient &) = delete;
-	RtmpClient(const RtmpClient &) = delete;
-	RtmpClient(xop::EventLoop *loop);
+	static std::shared_ptr<RtmpClient> create(xop::EventLoop* loop);
 	~RtmpClient();
 
 	void setFrameCB(const FrameCallback& cb);
@@ -27,6 +25,8 @@ public:
 
 private:
 	friend class RtmpConnection;
+
+	RtmpClient(xop::EventLoop *loop);
 
 	xop::EventLoop *m_eventLoop = nullptr;
 	TaskScheduler *m_taskScheduler = nullptr;
