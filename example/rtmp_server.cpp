@@ -20,20 +20,26 @@ int test_rtmp_publisher(xop::EventLoop *eventLoop);
 
 int main(int argc, char **argv)
 {
-	int count = 1; 
+	int count = 8; 
 #if TEST_MULTI_THREAD
 	count = std::thread::hardware_concurrency();
 #endif
 	xop::EventLoop eventLoop(count);
 
 	/* rtmp server example */
-	xop::RtmpServer rtmpServer(&eventLoop, "0.0.0.0", 1935);    
-	rtmpServer.setChunkSize(60000); 
-	//rtmpServer.setGopCache(); /* enable gop cache */
+	auto rtmpServer = xop::RtmpServer::create(&eventLoop);
+	rtmpServer->setChunkSize(60000); 
+	//rtmpServer->setGopCache(); /* enable gop cache */
+	if (!rtmpServer->Start("0.0.0.0", 1935)) {
+		printf("RTMP Server listen on 1935 failed.\n");
+	}
 
 	/* http-flv server example */
-	xop::HttpFlvServer httpFlvServer(&eventLoop, "0.0.0.0", 8080); 
-	httpFlvServer.attach(&rtmpServer);
+	xop::HttpFlvServer httpFlvServer(&eventLoop); 
+	httpFlvServer.attach(rtmpServer.get());
+	if (!httpFlvServer.Start("0.0.0.0", 8080)) {
+		printf("HTTP FLV Server listen on 8080 failed.\n");
+	}
 
 #if TEST_RTMP_PUSHER
 	/* rtmp pusher example */
@@ -44,13 +50,13 @@ int main(int argc, char **argv)
 #endif 
 
 #if	TEST_RTMP_CLIENT
-	xop::RtmpClient rtmpClient(&eventLoop);
-	rtmpClient.setFrameCB([](uint8_t* payload, uint32_t length, uint8_t codecId, uint32_t timestamp) {
+	auto rtmpClient = xop::RtmpClient::create(&eventLoop);
+	rtmpClient->setFrameCB([](uint8_t* payload, uint32_t length, uint8_t codecId, uint32_t timestamp) {
 		// handle frame ...
 	});
 
 	std::string status;
-	if (rtmpClient.openUrl(RTMP_URL, 3000, status) != 0)
+	if (rtmpClient->openUrl(RTMP_URL, 3000, status) != 0)
 	{
 		printf("Open url %s failed, status: %s\n", RTMP_URL, status.c_str());
 	}
@@ -61,6 +67,8 @@ int main(int argc, char **argv)
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
     
+	rtmpServer->Stop();
+	httpFlvServer.Stop();
 	return 0;
 }
 
@@ -238,11 +246,11 @@ int test_rtmp_publisher(xop::EventLoop *eventLoop)
 
 	/* push stream to local rtmp server */
 	xop::MediaInfo mediaInfo;
-	xop::RtmpPublisher publisher(eventLoop);
-	publisher.setChunkSize(60000);
+	auto publisher = xop::RtmpPublisher::create(eventLoop);
+	publisher->setChunkSize(60000);
 
 	std::string status;
-	if (publisher.openUrl(RTMP_URL, 3000, status) < 0)
+	if (publisher->openUrl(RTMP_URL, 3000, status) < 0)
 	{
 		printf("Open url %s failed, status: %s\n", RTMP_URL, status.c_str());
 		return -1;
@@ -253,7 +261,7 @@ int test_rtmp_publisher(xop::EventLoop *eventLoop)
 	bool hasSpsPps = false;
 	uint8_t *frameBuf = new uint8_t[bufSize];
 
-	while (publisher.isConnected())
+	while (publisher->isConnected())
 	{
 		int frameSize = h264File.readFrame((char*)frameBuf, bufSize, &bEndOfFrame);
 		if (frameSize > 0)
@@ -277,7 +285,7 @@ int test_rtmp_publisher(xop::EventLoop *eventLoop)
 							memcpy(mediaInfo.pps.get(), pps.first, mediaInfo.ppsSize);
 
 							hasSpsPps = true;
-							publisher.setMediaInfo(mediaInfo); /* set sps pps */							
+							publisher->setMediaInfo(mediaInfo); /* set sps pps */							
 							printf("Start rtmp pusher, rtmp url: %s , http-flv url: %s \n\n", RTMP_URL, HTTP_URL);
 						}
 					}
@@ -286,7 +294,7 @@ int test_rtmp_publisher(xop::EventLoop *eventLoop)
 			
 			if (hasSpsPps)
 			{
-				publisher.pushVideoFrame(frameBuf, frameSize); /* send h.264 frame */
+				publisher->pushVideoFrame(frameBuf, frameSize); /* send h.264 frame */
 			}
 		}
 
