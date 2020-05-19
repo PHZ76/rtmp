@@ -19,6 +19,9 @@
     <Filter Include="源文件\xop">
       <UniqueIdentifier>{9aef1dd1-2252-4eb1-bce3-05ae4f800d13}</UniqueIdentifier>
     </Filter>
+    <Filter Include="源文件\cpp-httplib">
+      <UniqueIdentifier>{9f6ccdbd-a573-44a2-8d46-aa8e4f8b9d05}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\example\rtmp_server.cpp">
@@ -100,6 +103,12 @@
       <Filter>源文件\xop</Filter>
     </ClCompile>
     <ClCompile Include="..\src\xop\RtmpClient.cpp">
+      <Filter>源文件\xop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\xop\RtmpChunk.cpp">
+      <Filter>源文件\xop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\xop\RtmpHandshake.cpp">
       <Filter>源文件\xop</Filter>
     </ClCompile>
   </ItemGroup>
@@ -199,6 +208,18 @@
     </ClInclude>
     <ClInclude Include="..\src\xop\RtmpClient.h">
       <Filter>源文件\xop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\xop\RtmpChunk.h">
+      <Filter>源文件\xop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\xop\RtmpMessage.h">
+      <Filter>源文件\xop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\xop\RtmpHandshake.h">
+      <Filter>源文件\xop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\3rdpart\cpp-httplib\httplib.h">
+      <Filter>源文件\cpp-httplib</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -19,7 +19,7 @@ class EventLoop;
 
 class TcpServer
 {
-public:	 
+public:	
 	TcpServer(EventLoop* event_loop);
 	virtual ~TcpServer();  
 
