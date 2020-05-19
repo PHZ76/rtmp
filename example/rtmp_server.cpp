@@ -27,7 +27,7 @@ int main(int argc, char **argv)
 	xop::EventLoop event_loop(count);
 
 	/* rtmp server example */
-	xop::RtmpServer rtmp_server = xop::RtmpServer::Create(&event_loop);
+	auto rtmp_server = xop::RtmpServer::Create(&event_loop);
 	rtmp_server->SetChunkSize(60000);
 	//rtmp_server->SetGopCache(); /* enable gop cache */
 	if (!rtmp_server->Start("0.0.0.0", 1935)) {
