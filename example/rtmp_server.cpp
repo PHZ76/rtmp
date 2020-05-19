@@ -16,59 +16,57 @@
 #define PUSH_FILE   "./test.h264"
 #define HTTP_URL    "http://127.0.0.1:8080/live/01.flv"
 
-int test_rtmp_publisher(xop::EventLoop *eventLoop);
+int test_rtmp_publisher(xop::EventLoop *event_loop);
 
 int main(int argc, char **argv)
 {
-	int count = 8; 
+	int count = 1; 
 #if TEST_MULTI_THREAD
 	count = std::thread::hardware_concurrency();
 #endif
-	xop::EventLoop eventLoop(count);
+	xop::EventLoop event_loop(count);
 
 	/* rtmp server example */
-	auto rtmpServer = xop::RtmpServer::create(&eventLoop);
-	rtmpServer->setChunkSize(60000); 
-	//rtmpServer->setGopCache(); /* enable gop cache */
-	if (!rtmpServer->Start("0.0.0.0", 1935)) {
+	xop::RtmpServer rtmp_server = xop::RtmpServer::Create(&event_loop);
+	rtmp_server->SetChunkSize(60000);
+	//rtmp_server->SetGopCache(); /* enable gop cache */
+	if (!rtmp_server->Start("0.0.0.0", 1935)) {
 		printf("RTMP Server listen on 1935 failed.\n");
 	}
 
 	/* http-flv server example */
-	xop::HttpFlvServer httpFlvServer(&eventLoop); 
-	httpFlvServer.attach(rtmpServer.get());
-	if (!httpFlvServer.Start("0.0.0.0", 8080)) {
+	xop::HttpFlvServer http_flv_server(&event_loop); 
+	http_flv_server.Attach(rtmp_server.get());
+	if (!http_flv_server.Start("0.0.0.0", 8080)) {
 		printf("HTTP FLV Server listen on 8080 failed.\n");
 	}
 
 #if TEST_RTMP_PUSHER
 	/* rtmp pusher example */
-	std::thread t([&eventLoop] () {
-		test_rtmp_publisher(&eventLoop);
+	std::thread t([&event_loop] () {
+		test_rtmp_publisher(&event_loop);
 	});
 	t.detach();
 #endif 
 
 #if	TEST_RTMP_CLIENT
-	auto rtmpClient = xop::RtmpClient::create(&eventLoop);
-	rtmpClient->setFrameCB([](uint8_t* payload, uint32_t length, uint8_t codecId, uint32_t timestamp) {
+	auto rtmp_client = xop::RtmpClient::Create(&event_loop);
+	rtmp_client->SetFrameCB([](uint8_t* payload, uint32_t length, uint8_t codecId, uint32_t timestamp) {
 		// handle frame ...
 	});
 
 	std::string status;
-	if (rtmpClient->openUrl(RTMP_URL, 3000, status) != 0)
-	{
+	if (rtmp_client->OpenUrl(RTMP_URL, 3000, status) != 0) {
 		printf("Open url %s failed, status: %s\n", RTMP_URL, status.c_str());
 	}
 #endif
 
-	while (1)
-	{
+	while (1) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
     
-	rtmpServer->Stop();
-	httpFlvServer.Stop();
+	rtmp_server->Stop();
+	http_flv_server.Stop();
 	return 0;
 }
 
@@ -80,7 +78,7 @@ public:
 	~H264File();
 
 	bool open(const char *path);
-	void close();
+	void Close();
 
 	bool isOpened() const
 	{
@@ -119,7 +117,7 @@ bool H264File::open(const char *path)
 	return true;
 }
 
-void H264File::close()
+void H264File::Close()
 {
 	if (m_file)
 	{
@@ -146,7 +144,7 @@ int H264File::readFrame(char *inBuf, int inBufSize, bool *bEndOfFrame)
 		bytesRead = (int)fread(m_buf, 1, m_bufSize, m_file);
 		if (bytesRead == 0)
 		{
-			this->close();
+			this->Close();
 			return -1;
 		}
 	}
@@ -213,7 +211,7 @@ int H264File::readFrame(char *inBuf, int inBufSize, bool *bEndOfFrame)
 
 	if (!bFindStart || !bFindEnd)
 	{
-		this->close();
+		this->Close();
 		return -1;
 	}
 
@@ -235,72 +233,64 @@ int H264File::readFrame(char *inBuf, int inBufSize, bool *bEndOfFrame)
 	return size;
 }
 
-int test_rtmp_publisher(xop::EventLoop *eventLoop)
+int test_rtmp_publisher(xop::EventLoop *event_loop)
 {
-	H264File h264File;
-	if (!h264File.open(PUSH_FILE))
-	{
+	H264File h264_file;
+	if (!h264_file.open(PUSH_FILE)) {
 		printf("Open %s failed.\n", PUSH_FILE);
 		return -1;
 	}
 
 	/* push stream to local rtmp server */
-	xop::MediaInfo mediaInfo;
-	auto publisher = xop::RtmpPublisher::create(eventLoop);
-	publisher->setChunkSize(60000);
+	xop::MediaInfo media_info;
+	auto publisher = xop::RtmpPublisher::Create(event_loop);
+	publisher->SetChunkSize(60000);
 
 	std::string status;
-	if (publisher->openUrl(RTMP_URL, 3000, status) < 0)
-	{
+	if (publisher->OpenUrl(RTMP_URL, 3000, status) < 0) {
 		printf("Open url %s failed, status: %s\n", RTMP_URL, status.c_str());
 		return -1;
 	}
 
-	int bufSize = 500000;
-	bool bEndOfFrame = false;
-	bool hasSpsPps = false;
-	uint8_t *frameBuf = new uint8_t[bufSize];
+	int buf_size = 500000;
+	bool end_of_frame = false;
+	bool has_sps_pps = false;
+	uint8_t *frame_buf = new uint8_t[buf_size];
 
-	while (publisher->isConnected())
+	while (publisher->IsConnected()) 
 	{
-		int frameSize = h264File.readFrame((char*)frameBuf, bufSize, &bEndOfFrame);
-		if (frameSize > 0)
-		{
-			if (!hasSpsPps)
-			{
-				if (frameBuf[3] == 0x67 || frameBuf[4] == 0x67)
-				{
-					xop::Nal sps = xop::H264Parser::findNal(frameBuf, frameSize);
-					if (sps.first != nullptr && sps.second != nullptr && *sps.first == 0x67)
-					{
-						mediaInfo.spsSize = (uint32_t)(sps.second - sps.first + 1);
-						mediaInfo.sps.reset(new uint8_t[mediaInfo.spsSize]);
-						memcpy(mediaInfo.sps.get(), sps.first, mediaInfo.spsSize);
+		int frameSize = h264_file.readFrame((char*)frame_buf, buf_size, &end_of_frame);
+		if (frameSize > 0) {
+			if (!has_sps_pps) {
+				if (frame_buf[3] == 0x67 || frame_buf[4] == 0x67) {
+					xop::Nal sps = xop::H264Parser::findNal(frame_buf, frameSize);
+					if (sps.first != nullptr && sps.second != nullptr && *sps.first == 0x67) {
+						media_info.sps_size = (uint32_t)(sps.second - sps.first + 1);
+						media_info.sps.reset(new uint8_t[media_info.sps_size]);
+						memcpy(media_info.sps.get(), sps.first, media_info.sps_size);
 
-						xop::Nal pps = xop::H264Parser::findNal(sps.second, frameSize - (int)(sps.second - frameBuf));
-						if (pps.first != nullptr && pps.second != nullptr && *pps.first == 0x68)
-						{
-							mediaInfo.ppsSize = (uint32_t)(pps.second - pps.first + 1);
-							mediaInfo.pps.reset(new uint8_t[mediaInfo.ppsSize]);
-							memcpy(mediaInfo.pps.get(), pps.first, mediaInfo.ppsSize);
+						xop::Nal pps = xop::H264Parser::findNal(sps.second, frameSize - (int)(sps.second - frame_buf));
+						if (pps.first != nullptr && pps.second != nullptr && *pps.first == 0x68) {
+							media_info.pps_size = (uint32_t)(pps.second - pps.first + 1);
+							media_info.pps.reset(new uint8_t[media_info.pps_size]);
+							memcpy(media_info.pps.get(), pps.first, media_info.pps_size);
 
-							hasSpsPps = true;
-							publisher->setMediaInfo(mediaInfo); /* set sps pps */							
+							has_sps_pps = true;
+							publisher->SetMediaInfo(media_info); /* set sps pps */							
 							printf("Start rtmp pusher, rtmp url: %s , http-flv url: %s \n\n", RTMP_URL, HTTP_URL);
 						}
 					}
 				}
 			}
 			
-			if (hasSpsPps)
-			{
-				publisher->pushVideoFrame(frameBuf, frameSize); /* send h.264 frame */
+			if (has_sps_pps) {
+				publisher->PushVideoFrame(frame_buf, frameSize); /* send h.264 frame */
 			}
 		}
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(40));
 	}
 	
-	delete frameBuf;
+	delete frame_buf;
 	return 0;
 }
