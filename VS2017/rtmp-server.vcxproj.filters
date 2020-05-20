@@ -117,9 +117,6 @@
     <ClCompile Include="..\src\3rdpart\mongoose\mongoose.c">
       <Filter>源文件\3rdpart\mongoose</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\xop\HttpServer.cpp">
-      <Filter>源文件\xop</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\net\Acceptor.h">
@@ -229,9 +226,6 @@
     </ClInclude>
     <ClInclude Include="..\src\3rdpart\mongoose\mongoose.h">
       <Filter>源文件\3rdpart\mongoose</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\xop\HttpServer.h">
-      <Filter>源文件\xop</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

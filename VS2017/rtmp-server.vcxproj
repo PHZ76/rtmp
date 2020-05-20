@@ -45,7 +45,6 @@
     <ClCompile Include="..\src\net\Timestamp.cpp" />
     <ClCompile Include="..\src\xop\amf.cpp" />
     <ClCompile Include="..\src\xop\H264Parser.cpp" />
-    <ClCompile Include="..\src\xop\HttpServer.cpp" />
     <ClCompile Include="..\src\xop\RtmpHandshake.cpp" />
     <ClCompile Include="..\src\xop\HttpFlvConnection.cpp" />
     <ClCompile Include="..\src\xop\HttpFlvServer.cpp" />
@@ -82,7 +81,6 @@
     <ClInclude Include="..\src\net\Timestamp.h" />
     <ClInclude Include="..\src\xop\amf.h" />
     <ClInclude Include="..\src\xop\H264Parser.h" />
-    <ClInclude Include="..\src\xop\HttpServer.h" />
     <ClInclude Include="..\src\xop\RtmpHandshake.h" />
     <ClInclude Include="..\src\xop\HttpFlvConnection.h" />
     <ClInclude Include="..\src\xop\HttpFlvServer.h" />
