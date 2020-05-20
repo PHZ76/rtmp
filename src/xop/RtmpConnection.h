@@ -115,7 +115,7 @@ private:
 	void setPlayCB(const PlayCallback& cb);
 
     bool SendInvokeMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payload_size);
-    bool sendNotifyMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payload_size);   
+    bool SendNotifyMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payload_size);   
     bool SendMetaData(AmfObjects metaData);
 	bool IsKeyFrame(std::shared_ptr<char> payload, uint32_t payload_size);
     bool SendMediaData(uint8_t type, uint64_t timestamp, std::shared_ptr<char> payload, uint32_t payload_size);

@@ -15,13 +15,13 @@ public:
 	HttpFlvServer(xop::EventLoop* event_loop);
 	~HttpFlvServer();
 
-	void Attach(RtmpServer* rtmp_server);
+	void Attach(std::shared_ptr<RtmpServer> rtmp_server);
 
 private:
 	TcpConnection::Ptr OnConnect(SOCKET sockfd);
 
 	std::mutex mutex_;
-	RtmpServer *rtmp_server_ = nullptr;
+	std::weak_ptr<RtmpServer> rtmp_server_;
 };
 
 }

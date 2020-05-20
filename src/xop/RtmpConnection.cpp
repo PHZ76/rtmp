@@ -613,7 +613,7 @@ bool RtmpConnection::HandlePlay()
     amf_encoder_.encodeString("|RtmpSampleAccess", 17);
     amf_encoder_.encodeBoolean(true);
     amf_encoder_.encodeBoolean(true);
-    if(!sendNotifyMessage(RTMP_CHUNK_DATA_ID, amf_encoder_.data(), amf_encoder_.size())) {
+    if(!this->SendNotifyMessage(RTMP_CHUNK_DATA_ID, amf_encoder_.data(), amf_encoder_.size())) {
         return false;
     }
              
@@ -750,7 +750,7 @@ bool RtmpConnection::SendMetaData(AmfObjects metaData)
     amf_encoder_.reset(); 
     amf_encoder_.encodeString("onMetaData", 10);
     amf_encoder_.encodeECMA(metaData);
-    if(!sendNotifyMessage(RTMP_CHUNK_DATA_ID, amf_encoder_.data(), amf_encoder_.size())) {
+    if(!this->SendNotifyMessage(RTMP_CHUNK_DATA_ID, amf_encoder_.data(), amf_encoder_.size())) {
         return false;
     }
 
@@ -815,7 +815,7 @@ bool RtmpConnection::SendInvokeMessage(uint32_t csid, std::shared_ptr<char> payl
     return true;
 }
 
-bool RtmpConnection::sendNotifyMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payload_size)
+bool RtmpConnection::SendNotifyMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payload_size)
 {
     if(this->IsClosed()) {
         return false;

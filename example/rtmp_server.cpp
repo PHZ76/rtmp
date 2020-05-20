@@ -36,7 +36,7 @@ int main(int argc, char **argv)
 
 	/* http-flv server example */
 	xop::HttpFlvServer http_flv_server(&event_loop); 
-	http_flv_server.Attach(rtmp_server.get());
+	http_flv_server.Attach(rtmp_server);
 	if (!http_flv_server.Start("0.0.0.0", 8080)) {
 		printf("HTTP FLV Server listen on 8080 failed.\n");
 	}

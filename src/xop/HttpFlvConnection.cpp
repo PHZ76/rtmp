@@ -4,10 +4,10 @@
 
 using namespace xop;
 
-HttpFlvConnection::HttpFlvConnection(RtmpServer *rtmpServer, TaskScheduler* taskScheduler, SOCKET sockfd)
-	: TcpConnection(taskScheduler, sockfd)
-	, rtmp_server_(rtmpServer)
-	, task_scheduler_(taskScheduler)
+HttpFlvConnection::HttpFlvConnection(std::shared_ptr<RtmpServer> rtmp_server, TaskScheduler* scheduler, SOCKET sockfd)
+	: TcpConnection(scheduler, sockfd)
+	, rtmp_server_(rtmp_server)
+	, task_scheduler_(scheduler)
 {
 	this->SetReadCallback([this](std::shared_ptr<TcpConnection> conn, xop::BufferReader& buffer) {
 		return this->OnRead(buffer);
@@ -29,12 +29,13 @@ bool HttpFlvConnection::OnRead(BufferReader& buffer)
 		return (buffer.ReadableBytes() >= 4096) ? false : true;
 	}
 
-	const char* first_crlf = buffer.FindFirstCrlf();
-	if (first_crlf == nullptr) {
-		return false;
+	const char* last_crlf_crlf = buffer.FindLastCrlfCrlf();
+	if (last_crlf_crlf == nullptr) {
+		return true;
 	}
 
-	std::string buf(buffer.Peek(), first_crlf - buffer.Peek());
+	std::string buf(buffer.Peek(), last_crlf_crlf - buffer.Peek());
+	buffer.RetrieveUntil(last_crlf_crlf + 4);
 
 	auto pos1 = buf.find("GET");
 	auto pos2 = buf.find(".flv");
@@ -49,14 +50,18 @@ bool HttpFlvConnection::OnRead(BufferReader& buffer)
 	stream_path_ = stream_path_.substr(pos1, pos2);
 	//printf("%s\n", stream_path_.c_str());
 
-	if (rtmp_server_ != nullptr) {
-		std::string http_flv_header = "HTTP/1.1 200 OK\r\nContent-Type: video/x-flv\r\n\r\n";
-		this->Send(http_flv_header.c_str(), (uint32_t)http_flv_header.size());
+	auto rtmp_server = rtmp_server_.lock();
+	if (rtmp_server) {
+		std::string http_header = "HTTP/1.1 200 OK\r\nContent-Type: video/x-flv\r\n\r\n";
+		this->Send(http_header.c_str(), (uint32_t)http_header.size());
 
-		auto sessionPtr = rtmp_server_->GetSession(stream_path_);
-		if (sessionPtr != nullptr) {
-			sessionPtr->AddHttpClient(std::dynamic_pointer_cast<HttpFlvConnection>(shared_from_this()));
+		auto session = rtmp_server->GetSession(stream_path_);
+		if (session != nullptr) {
+			session->AddHttpClient(std::dynamic_pointer_cast<HttpFlvConnection>(shared_from_this()));
 		}
+	}
+	else {
+		return false;
 	}
 	
 	return true;
@@ -64,8 +69,9 @@ bool HttpFlvConnection::OnRead(BufferReader& buffer)
 
 void HttpFlvConnection::OnClose()
 {
-	if (rtmp_server_ != nullptr) {
-		auto session = rtmp_server_->GetSession(stream_path_);
+	auto rtmp_server = rtmp_server_.lock();
+	if (rtmp_server != nullptr) {
+		auto session = rtmp_server->GetSession(stream_path_);
 		if (session != nullptr) {
 			auto conn = std::dynamic_pointer_cast<HttpFlvConnection>(shared_from_this());
 			task_scheduler_->AddTimer([session, conn] {
@@ -101,8 +107,8 @@ bool HttpFlvConnection::SendMediaData(uint8_t type, uint64_t timestamp, std::sha
 		if (type == RTMP_VIDEO) {
 			if (!conn->has_key_frame_) {
 				uint8_t frame_type = (payload.get()[0] >> 4) & 0x0f;
-				uint8_t codecId = payload.get()[0] & 0x0f;
-				if (frame_type == 1 && codecId == RTMP_CODEC_ID_H264) {
+				uint8_t codec_id = payload.get()[0] & 0x0f;
+				if (frame_type == 1 && codec_id == RTMP_CODEC_ID_H264) {
 					conn->has_key_frame_ = true;
 				}
 				else {

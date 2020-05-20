@@ -27,19 +27,17 @@ int RtmpPublisher::SetMediaInfo(MediaInfo media_info)
 
 	media_info_ = media_info;
 
-	if (media_info_.audio_codec_id == RTMP_CODEC_ID_AAC)
-	{
-		if (media_info_.audio_specific_config_size > 0)
-		{
+	if (media_info_.audio_codec_id == RTMP_CODEC_ID_AAC) {
+		if (media_info_.audio_specific_config_size > 0) {
 			aac_sequence_header_size_ = media_info_.audio_specific_config_size + 2;
 			aac_sequence_header_.reset(new char[aac_sequence_header_size_]);
 			uint8_t *data = (uint8_t *)aac_sequence_header_.get();
-			uint8_t soundRate = 3; //for aac awlays 3
-			uint8_t soundSize = 1; //0:8bit , 1:16bit
-			uint8_t soundType = 1; //for aac awlays 1
+			uint8_t sound_rate = 3; //for aac awlays 3
+			uint8_t soundz_size = 1; //0:8bit , 1:16bit
+			uint8_t sound_type = 1; //for aac awlays 1
 
 			// audio tag data
-			audio_tag_ = data[0] = (((RTMP_CODEC_ID_AAC & 0xf) << 4) | ((soundRate & 0x3) << 2) | ((soundSize & 0x1) << 1) | (soundType & 0x1));
+			audio_tag_ = data[0] = (((RTMP_CODEC_ID_AAC & 0xf) << 4) | ((sound_rate & 0x3) << 2) | ((soundz_size & 0x1) << 1) | (sound_type & 0x1));
 
 			// aac packet type 
 			data[1] = 0; // 0: aac sequence header, 1: aac raw data
@@ -52,16 +50,13 @@ int RtmpPublisher::SetMediaInfo(MediaInfo media_info)
 			media_info_.audio_channel = channel;
 			media_info_.audio_samplerate = kSamplingFrequency[samplingFrequencyIndex];
 		}
-		else
-		{
+		else {
 			media_info_.audio_codec_id = 0;
 		}
 	}
 
-	if (media_info_.video_codec_id == RTMP_CODEC_ID_H264)
-	{
-		if (media_info_.sps_size > 0 && media_info_.pps > 0)
-		{
+	if (media_info_.video_codec_id == RTMP_CODEC_ID_H264) {
+		if (media_info_.sps_size > 0 && media_info_.pps > 0) {
 			avc_sequence_header_.reset(new char[4096]);
 			uint8_t *data = (uint8_t *)avc_sequence_header_.get();
 			uint32_t index = 0;
@@ -101,8 +96,7 @@ int RtmpPublisher::SetMediaInfo(MediaInfo media_info)
 
 			avc_sequence_header_size_ = index;
 		}
-		else
-		{
+		else {
 			media_info_.video_codec_id = 0;
 		}
 	}

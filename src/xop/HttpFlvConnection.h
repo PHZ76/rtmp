@@ -12,8 +12,8 @@ class RtmpServer;
 class HttpFlvConnection : public TcpConnection
 {
 public:
-	HttpFlvConnection(RtmpServer *rtmpServer, TaskScheduler* taskScheduler, SOCKET sockfd);
-	~HttpFlvConnection();
+	HttpFlvConnection(std::shared_ptr<RtmpServer> rtmp_server, TaskScheduler* taskScheduler, SOCKET sockfd);
+	virtual ~HttpFlvConnection();
 
 	bool HasFlvHeader() const 
 	{ return has_flv_header_; }
@@ -35,7 +35,7 @@ private:
 	void SendFlvHeader();
 	int  SendFlvTag(uint8_t type, uint64_t timestamp, std::shared_ptr<char> payload, uint32_t payload_size);
 
-	RtmpServer* rtmp_server_ = nullptr;
+	std::weak_ptr<RtmpServer> rtmp_server_;
 	TaskScheduler* task_scheduler_ = nullptr;
 	std::string stream_path_;
 

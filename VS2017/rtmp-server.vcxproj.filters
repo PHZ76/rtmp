@@ -19,8 +19,11 @@
     <Filter Include="源文件\xop">
       <UniqueIdentifier>{9aef1dd1-2252-4eb1-bce3-05ae4f800d13}</UniqueIdentifier>
     </Filter>
-    <Filter Include="源文件\cpp-httplib">
-      <UniqueIdentifier>{9f6ccdbd-a573-44a2-8d46-aa8e4f8b9d05}</UniqueIdentifier>
+    <Filter Include="源文件\3rdpart">
+      <UniqueIdentifier>{494a1290-e3a8-4611-a3f4-eb64861b11a7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\3rdpart\mongoose">
+      <UniqueIdentifier>{9d0017c9-6c53-422e-ba89-29e27f141f0f}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -109,6 +112,12 @@
       <Filter>源文件\xop</Filter>
     </ClCompile>
     <ClCompile Include="..\src\xop\RtmpHandshake.cpp">
+      <Filter>源文件\xop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\3rdpart\mongoose\mongoose.c">
+      <Filter>源文件\3rdpart\mongoose</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\xop\HttpServer.cpp">
       <Filter>源文件\xop</Filter>
     </ClCompile>
   </ItemGroup>
@@ -218,8 +227,16 @@
     <ClInclude Include="..\src\xop\RtmpHandshake.h">
       <Filter>源文件\xop</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\3rdpart\cpp-httplib\httplib.h">
-      <Filter>源文件\cpp-httplib</Filter>
+    <ClInclude Include="..\src\3rdpart\mongoose\mongoose.h">
+      <Filter>源文件\3rdpart\mongoose</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\xop\HttpServer.h">
+      <Filter>源文件\xop</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\src\3rdpart\mongoose\LICENSE">
+      <Filter>源文件\3rdpart\mongoose</Filter>
+    </None>
   </ItemGroup>
 </Project>
