@@ -1,5 +1,7 @@
 ﻿#include "Process.h"
+#if defined(WIN32) || defined(_WIN32) 
 #include <tlhelp32.h>
+#endif
 
 using namespace xop;
 
