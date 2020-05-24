@@ -117,6 +117,18 @@
     <ClCompile Include="..\src\3rdpart\mongoose\mongoose.c">
       <Filter>源文件\3rdpart\mongoose</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\xop\HttpServer.cpp">
+      <Filter>源文件\xop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\xop\HttpConnection.cpp">
+      <Filter>源文件\xop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\xop\RtmpSink.cpp">
+      <Filter>源文件\xop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\net\Process.cpp">
+      <Filter>源文件\net</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\net\Acceptor.h">
@@ -226,6 +238,18 @@
     </ClInclude>
     <ClInclude Include="..\src\3rdpart\mongoose\mongoose.h">
       <Filter>源文件\3rdpart\mongoose</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\xop\HttpServer.h">
+      <Filter>源文件\xop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\xop\HttpConnection.h">
+      <Filter>源文件\xop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\xop\RtmpSink.h">
+      <Filter>源文件\xop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\net\Process.h">
+      <Filter>源文件\net</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
