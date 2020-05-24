@@ -6,6 +6,7 @@
 #include "xop/HttpFlvServer.h"
 #include "xop/RtmpPublisher.h"
 #include "xop/RtmpClient.h"
+#include "xop/HttpFlvServer.h"
 #include "xop/H264Parser.h"
 #include "net/EventLoop.h"
 
@@ -16,7 +17,7 @@
 #define PUSH_FILE   "./test.h264"
 #define HTTP_URL    "http://127.0.0.1:8080/live/01.flv"
 
-int test_rtmp_publisher(xop::EventLoop *event_loop);
+int TestRtmpPublisher(xop::EventLoop *event_loop);
 
 int main(int argc, char **argv)
 {
@@ -30,12 +31,15 @@ int main(int argc, char **argv)
 	auto rtmp_server = xop::RtmpServer::Create(&event_loop);
 	rtmp_server->SetChunkSize(60000);
 	//rtmp_server->SetGopCache(); /* enable gop cache */
+	rtmp_server->SetEventCallback([](std::string type, std::string stream_path) {
+		printf("[Event] %s, stream path: %s\n\n", type.c_str(), stream_path.c_str());
+	});
 	if (!rtmp_server->Start("0.0.0.0", 1935)) {
 		printf("RTMP Server listen on 1935 failed.\n");
 	}
 
 	/* http-flv server example */
-	xop::HttpFlvServer http_flv_server(&event_loop); 
+	xop::HttpFlvServer http_flv_server; 
 	http_flv_server.Attach(rtmp_server);
 	if (!http_flv_server.Start("0.0.0.0", 8080)) {
 		printf("HTTP FLV Server listen on 8080 failed.\n");
@@ -44,7 +48,7 @@ int main(int argc, char **argv)
 #if TEST_RTMP_PUSHER
 	/* rtmp pusher example */
 	std::thread t([&event_loop] () {
-		test_rtmp_publisher(&event_loop);
+		TestRtmpPublisher(&event_loop);
 	});
 	t.detach();
 #endif 
@@ -52,7 +56,7 @@ int main(int argc, char **argv)
 #if	TEST_RTMP_CLIENT
 	auto rtmp_client = xop::RtmpClient::Create(&event_loop);
 	rtmp_client->SetFrameCB([](uint8_t* payload, uint32_t length, uint8_t codecId, uint32_t timestamp) {
-		// handle frame ...
+		printf("recv frame, type:%u, size:%u,\n", codecId, length);
 	});
 
 	std::string status;
@@ -66,7 +70,7 @@ int main(int argc, char **argv)
 	}
     
 	rtmp_server->Stop();
-	http_flv_server.Stop();
+	//http_flv_server.Stop();
 	return 0;
 }
 
@@ -233,7 +237,7 @@ int H264File::readFrame(char *inBuf, int inBufSize, bool *bEndOfFrame)
 	return size;
 }
 
-int test_rtmp_publisher(xop::EventLoop *event_loop)
+int TestRtmpPublisher(xop::EventLoop *event_loop)
 {
 	H264File h264_file;
 	if (!h264_file.open(PUSH_FILE)) {
