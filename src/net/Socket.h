@@ -26,9 +26,15 @@
 #define SOCKET_ERROR    (-1) 
 
 #elif defined(WIN32) || defined(_WIN32) 
+#ifndef FD_SETSIZE
 #define FD_SETSIZE      1024
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef _WINSOCK_DEPRECATED_NO_WARNINGS
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
+#endif
 #include <WinSock2.h>
 #include <windows.h>
 #include <ws2tcpip.h>
