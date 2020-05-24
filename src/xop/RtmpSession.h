@@ -9,7 +9,8 @@
 
 namespace xop
 {
-    
+
+class RtmpSink;
 class RtmpConnection;
 class HttpFlvConnection;
 
@@ -47,16 +48,14 @@ public:
 		return meta_data_;
 	}
 
-	void AddRtmpClient(std::shared_ptr<RtmpConnection> conn);
-	void RemoveRtmpClient(std::shared_ptr<RtmpConnection> conn);
-	void AddHttpClient(std::shared_ptr<HttpFlvConnection> conn);
-	void RemoveHttpClient(std::shared_ptr<HttpFlvConnection> conn);
+	void AddSink(std::shared_ptr<RtmpSink> sink);
+	void RemoveSink(std::shared_ptr<RtmpSink> sink);
 	int  GetClients();
 	
 	void SendMetaData(AmfObjects& metaData);
 	void SendMediaData(uint8_t type, uint64_t timestamp, std::shared_ptr<char> data, uint32_t size);
 
-	std::shared_ptr<RtmpConnection> getPublisher();
+	std::shared_ptr<RtmpConnection> GetPublisher();
 
 	void SetGopCache(uint32_t cacheLen)
 	{
@@ -66,14 +65,14 @@ public:
 
 	void SaveGop(uint8_t type, uint64_t timestamp, std::shared_ptr<char> data, uint32_t size);
 
-private:        
+private:    
+	void SendGop(std::shared_ptr<RtmpSink> sink);
 
     std::mutex mutex_;
     AmfObjects meta_data_;
     bool has_publisher_ = false;
-	std::weak_ptr<RtmpConnection> publisher_;
-    std::unordered_map<SOCKET, std::weak_ptr<RtmpConnection>> rtmp_clients_;
-	std::unordered_map<SOCKET, std::weak_ptr<HttpFlvConnection>> http_clients_;
+	std::weak_ptr<RtmpSink> publisher_;
+    std::unordered_map<SOCKET, std::weak_ptr<RtmpSink>> rtmp_sinks_;
 
 	std::shared_ptr<char> avc_sequence_header_;
 	std::shared_ptr<char> aac_sequence_header_;

@@ -75,7 +75,7 @@ public:
 		}
 	}
 
-	void SetGopCache(uint32_t len = 10000)
+	void SetGopCache(uint32_t len = 5000)
 	{ max_gop_cache_len_ = len; }
 
 	void SetPeerBandwidth(uint32_t size)

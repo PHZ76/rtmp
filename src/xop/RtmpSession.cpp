@@ -18,10 +18,10 @@ void RtmpSession::SendMetaData(AmfObjects& metaData)
 { 
     std::lock_guard<std::mutex> lock(mutex_);    
     
-	for (auto iter = rtmp_clients_.begin(); iter != rtmp_clients_.end(); ) {
+	for (auto iter = rtmp_sinks_.begin(); iter != rtmp_sinks_.end(); ) {
         auto conn = iter->second.lock(); 
         if (conn == nullptr) {
-			rtmp_clients_.erase(iter++);
+			rtmp_sinks_.erase(iter++);
         }
         else {	
             if(conn->IsPlayer()) {               
@@ -40,11 +40,10 @@ void RtmpSession::SendMediaData(uint8_t type, uint64_t timestamp, std::shared_pt
 		this->SaveGop(type, timestamp, data, size);
 	}
 
-    for (auto iter = rtmp_clients_.begin(); iter != rtmp_clients_.end(); )
-    {
+    for (auto iter = rtmp_sinks_.begin(); iter != rtmp_sinks_.end(); ) {
         auto conn = iter->second.lock(); 
         if (conn == nullptr) {
-			rtmp_clients_.erase(iter++);
+			rtmp_sinks_.erase(iter++);
         }
         else {	
             if(conn->IsPlayer()) {   
@@ -52,55 +51,13 @@ void RtmpSession::SendMediaData(uint8_t type, uint64_t timestamp, std::shared_pt
 					conn->SendMetaData(meta_data_);
 					conn->SendMediaData(RTMP_AVC_SEQUENCE_HEADER, 0, this->avc_sequence_header_, this->avc_sequence_header_size_);
 					conn->SendMediaData(RTMP_AAC_SEQUENCE_HEADER, 0, this->aac_sequence_header_, this->aac_sequence_header_size_);
-					
-					if (gop_cache_.size() > 0) {						
-						auto gop = gop_cache_.begin()->second;
-						for (auto iter : *gop) {
-							if (iter->type == RTMP_VIDEO) {								
-								conn->SendVideoData(iter->timestamp, iter->data, iter->size);
-							}
-							else if (iter->type == RTMP_AUDIO) {
-								conn->SendAudioData(iter->timestamp, iter->data, iter->size);
-							}
-						}
-					}
+					SendGop(conn);
 				}
 				conn->SendMediaData(type, timestamp, data, size);
             }
 			iter++;
         }
     }
-
-	for (auto iter = http_clients_.begin(); iter != http_clients_.end(); )
-	{
-		auto conn = iter->second.lock();
-		if (conn == nullptr) { // conn disconect 
-			http_clients_.erase(iter++);
-		}
-		else {
-			if (!conn->IsPlaying()) {
-				conn->SendMediaData(RTMP_AVC_SEQUENCE_HEADER, 0, avc_sequence_header_, avc_sequence_header_size_);
-				conn->SendMediaData(RTMP_AAC_SEQUENCE_HEADER, 0, aac_sequence_header_, aac_sequence_header_size_);
-
-				if (gop_cache_.size() > 0) {
-					auto gop = gop_cache_.begin()->second;
-					for (auto iter : *gop) {
-						if (iter->type == RTMP_VIDEO) {
-							conn->SendMediaData(RTMP_VIDEO, iter->timestamp, iter->data, iter->size);
-						}
-						else if (iter->type == RTMP_AUDIO) {
-							conn->SendMediaData(RTMP_AUDIO, iter->timestamp, iter->data, iter->size);
-						}
-					}
-
-					conn->ResetKeyFrame();
-				}
-			}
-
-			conn->SendMediaData(type, timestamp, data, size);
-			iter++;
-		}
-	}
 
 	return;
 }
@@ -162,11 +119,26 @@ void RtmpSession::SaveGop(uint8_t type, uint64_t timestamp, std::shared_ptr<char
 	}
 }
 
-void RtmpSession::AddRtmpClient(std::shared_ptr<RtmpConnection> conn)
+void RtmpSession::SendGop(std::shared_ptr<RtmpSink> sink)
+{
+	if (gop_cache_.size() > 0) {
+		auto gop = gop_cache_.begin()->second;
+		for (auto iter : *gop) {
+			if (iter->type == RTMP_VIDEO) {
+				sink->SendVideoData(iter->timestamp, iter->data, iter->size);
+			}
+			else if (iter->type == RTMP_AUDIO) {
+				sink->SendAudioData(iter->timestamp, iter->data, iter->size);
+			}
+		}
+	}
+}
+
+void RtmpSession::AddSink(std::shared_ptr<RtmpSink> sink)
 {
     std::lock_guard<std::mutex> lock(mutex_);   
-	rtmp_clients_[conn->GetSocket()] = conn;
-    if(conn->IsPublisher()) {
+	rtmp_sinks_[sink->GetId()] = sink;
+    if(sink->IsPublisher()) {
 		avc_sequence_header_ = nullptr;
 		aac_sequence_header_ = nullptr;
 		avc_sequence_header_size_ = 0;
@@ -174,15 +146,15 @@ void RtmpSession::AddRtmpClient(std::shared_ptr<RtmpConnection> conn)
 		gop_cache_.clear();
 		gop_index_ = 0;		
         has_publisher_ = true;
-		publisher_ = conn;
+		publisher_ = sink;
     }
 	return;
 }
 
-void RtmpSession::RemoveRtmpClient(std::shared_ptr<RtmpConnection> conn)
+void RtmpSession::RemoveSink(std::shared_ptr<RtmpSink> sink)
 {
     std::lock_guard<std::mutex> lock(mutex_);    
-    if(conn->IsPublisher()) {
+    if(sink->IsPublisher()) {
 		avc_sequence_header_ = nullptr;
 		aac_sequence_header_ = nullptr;
 		avc_sequence_header_size_ = 0;
@@ -191,29 +163,7 @@ void RtmpSession::RemoveRtmpClient(std::shared_ptr<RtmpConnection> conn)
 		gop_index_ = 0;
         has_publisher_ = false;
     }
-	rtmp_clients_.erase(conn->GetSocket());
-}
-
-void RtmpSession::AddHttpClient(std::shared_ptr<HttpFlvConnection> conn)
-{
-	std::lock_guard<std::mutex> lock(mutex_);
-	http_clients_[conn->GetSocket()] = conn;
-}
-
-void RtmpSession::RemoveHttpClient(std::shared_ptr<HttpFlvConnection> conn)
-{
-	std::lock_guard<std::mutex> lock(mutex_);
-	http_clients_.erase(conn->GetSocket());
-}
-
-void AddHttpClient(std::shared_ptr<RtmpConnection> conn)
-{
-
-}
-
-void RemoveHttpClient(std::shared_ptr<RtmpConnection> conn)
-{
-
+	rtmp_sinks_.erase(sink->GetId());
 }
 
 int RtmpSession::GetClients()
@@ -221,16 +171,9 @@ int RtmpSession::GetClients()
     std::lock_guard<std::mutex> lock(mutex_);
 
 	int clients = 0;
-	for (auto iter : rtmp_clients_) {
+	for (auto iter : rtmp_sinks_) {
 		auto conn = iter.second.lock();
 		if (conn != nullptr)  {
-			clients += 1;
-		}
-	}
-
-	for (auto iter : http_clients_) {
-		auto conn = iter.second.lock();
-		if (conn != nullptr) {
 			clients += 1;
 		}
 	}
@@ -238,8 +181,12 @@ int RtmpSession::GetClients()
     return clients;
 }
 
-std::shared_ptr<RtmpConnection> RtmpSession::getPublisher()
+std::shared_ptr<RtmpConnection> RtmpSession::GetPublisher()
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	return publisher_.lock();
+	auto publisher = publisher_.lock();
+	if (publisher) {
+		return std::dynamic_pointer_cast<RtmpConnection>(publisher);
+	}
+	return nullptr;
 }

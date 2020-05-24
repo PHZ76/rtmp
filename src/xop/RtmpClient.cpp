@@ -65,7 +65,7 @@ int RtmpClient::OpenUrl(std::string url, int msec, std::string& status)
 	rtmp_conn_.reset(new RtmpConnection(shared_from_this(), task_scheduler_, tcp_socket.GetSocket()));
 	task_scheduler_->AddTriggerEvent([this]() {
 		if (frame_cb_) {
-			rtmp_conn_->setPlayCB(frame_cb_);
+			rtmp_conn_->SetPlayCB(frame_cb_);
 		}
 		rtmp_conn_->Handshake();
 	});

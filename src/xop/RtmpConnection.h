@@ -5,6 +5,7 @@
 #include "net/TcpConnection.h"
 #include "amf.h"
 #include "rtmp.h"
+#include "RtmpSink.h"
 #include "RtmpChunk.h"
 #include "RtmpHandshake.h"
 #include <vector>
@@ -15,8 +16,9 @@ namespace xop
 class RtmpServer;
 class RtmpPublisher;
 class RtmpClient;
+class RtmpSession;
 
-class RtmpConnection : public TcpConnection
+class RtmpConnection : public TcpConnection, public RtmpSink
 {
 public:    
 	using PlayCallback = std::function<void(uint8_t* payload, uint32_t length, uint8_t codecId, uint32_t timestamp)>;
@@ -55,17 +57,20 @@ public:
     AmfObjects GetMetaData() const 
     { return meta_data_; }
 
-    bool IsPlayer() const 
-    { return connection_state_ == START_PLAY; }
+	virtual bool IsPlayer() override 
+	{ return connection_state_ == START_PLAY; }
 
-    bool IsPublisher() const 
+	virtual bool IsPublisher() override
     { return connection_state_ == START_PUBLISH; }
     
-	bool IsPlaying() const
+	virtual bool IsPlaying() override
 	{ return is_playing_; }
 
-	bool IsPublishing() const
+	virtual bool IsPublishing() override
 	{ return is_publishing_; }
+
+	virtual uint32_t GetId() override
+	{ return (uint32_t)this->GetSocket(); }
 
 	std::string GetStatus()
 	{ 
@@ -112,20 +117,22 @@ private:
     void SetPeerBandwidth();
     void SendAcknowledgement();
     void SetChunkSize();
-	void setPlayCB(const PlayCallback& cb);
+	void SetPlayCB(const PlayCallback& cb);
 
     bool SendInvokeMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payload_size);
     bool SendNotifyMessage(uint32_t csid, std::shared_ptr<char> payload, uint32_t payload_size);   
-    bool SendMetaData(AmfObjects metaData);
 	bool IsKeyFrame(std::shared_ptr<char> payload, uint32_t payload_size);
-    bool SendMediaData(uint8_t type, uint64_t timestamp, std::shared_ptr<char> payload, uint32_t payload_size);
-	bool SendVideoData(uint64_t timestamp, std::shared_ptr<char> payload, uint32_t payload_size);
-	bool SendAudioData(uint64_t timestamp, std::shared_ptr<char> payload, uint32_t payload_size);
     void SendRtmpChunks(uint32_t csid, RtmpMessage& rtmp_msg);
+
+	virtual bool SendMetaData(AmfObjects metaData) override;
+	virtual bool SendMediaData(uint8_t type, uint64_t timestamp, std::shared_ptr<char> payload, uint32_t payload_size) override;
+	virtual bool SendVideoData(uint64_t timestamp, std::shared_ptr<char> payload, uint32_t payload_size) override;
+	virtual bool SendAudioData(uint64_t timestamp, std::shared_ptr<char> payload, uint32_t payload_size) override;
 
 	std::weak_ptr<RtmpServer> rtmp_server_;
 	std::weak_ptr<RtmpPublisher> rtmp_publisher_;
 	std::weak_ptr<RtmpClient> rtmp_client_;
+	std::weak_ptr<RtmpSession> rtmp_session_;
 
 	std::shared_ptr<RtmpHandshake> handshake_;
 	std::shared_ptr<RtmpChunk> rtmp_chunk_;

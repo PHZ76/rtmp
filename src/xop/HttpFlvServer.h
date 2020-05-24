@@ -1,7 +1,7 @@
 #ifndef XOP_HTTP_FLV_SERVER_H
 #define XOP_HTTP_FLV_SERVER_H
 
-#include "net/TcpServer.h"
+#include "HttpServer.h"
 #include "HttpFlvConnection.h"
 #include <mutex>
 
@@ -9,22 +9,24 @@ namespace xop
 {
 class RtmpServer;
 
-class HttpFlvServer : public TcpServer
+class HttpFlvServer : public HttpServer
 {
 public:
-	HttpFlvServer(xop::EventLoop* event_loop);
-	~HttpFlvServer();
+	HttpFlvServer();
+	virtual ~HttpFlvServer();
 
 	void Attach(std::shared_ptr<RtmpServer> rtmp_server);
 
 private:
-	TcpConnection::Ptr OnConnect(SOCKET sockfd);
+	virtual void OnConnect(mg_connection* conn) override;
+	virtual void OnRequest(mg_connection* conn, void* ev_data) override;
+	virtual void OnClose(mg_connection* conn);
 
 	std::mutex mutex_;
 	std::weak_ptr<RtmpServer> rtmp_server_;
+	std::string stream_path_;
 };
 
 }
-
 
 #endif

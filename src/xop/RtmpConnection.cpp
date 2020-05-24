@@ -107,18 +107,21 @@ void RtmpConnection::OnClose()
 bool RtmpConnection::HandleChunk(BufferReader& buffer)
 {
 	int ret = -1;
-	RtmpMessage rtmp_msg;
-
+	
 	do
 	{
+		RtmpMessage rtmp_msg;
 		ret = rtmp_chunk_->Parse(buffer, rtmp_msg);
-		if (ret > 0) {
+		if (ret >= 0) {
 			if (rtmp_msg.IsCompleted()) {
-				ret = HandleMessage(rtmp_msg);
+				if (!HandleMessage(rtmp_msg)) {
+					return false;
+				}
 			}
-		}
-		else if (ret == 0) {
-			break;
+
+			if (ret == 0) {
+				break;
+			}
 		}
 		else if (ret < 0) {
 			return false;
@@ -263,7 +266,7 @@ bool RtmpConnection::HandleNotify(RtmpMessage& rtmp_msg)
 				return false;
 			}
 
-            auto session = server->GetSession(stream_path_);
+            auto session = rtmp_session_.lock();
             if(session) {
 				session->SetMetaData(meta_data_);
 				session->SendMetaData(meta_data_);
@@ -296,7 +299,7 @@ bool RtmpConnection::HandleVideo(RtmpMessage& rtmp_msg)
 			return false;
 		}
 
-		auto session = server->GetSession(stream_path_);
+		auto session = rtmp_session_.lock();
 		if (session == nullptr) {
 			return false;
 		}
@@ -341,7 +344,7 @@ bool RtmpConnection::HandleAudio(RtmpMessage& rtmp_msg)
 			return false;
 		}
 
-		auto session = server->GetSession(stream_path_);
+		auto session = rtmp_session_.lock();
 		if (session == nullptr) {
 			return false;
 		}
@@ -517,7 +520,7 @@ bool RtmpConnection::HandleCreateStream()
 
 bool RtmpConnection::HandlePublish()
 {
-    LOG_INFO("[Publish] app: %s, stream name: %s, stream path: %s\n", app_.c_str(), stream_name_.c_str(), stream_path_.c_str());
+    //LOG_INFO("[Publish] app: %s, stream name: %s, stream path: %s\n", app_.c_str(), stream_name_.c_str(), stream_path_.c_str());
 
 	auto server = rtmp_server_.lock();
 	if (!server) {
@@ -552,6 +555,11 @@ bool RtmpConnection::HandlePublish()
         objects["code"] = AmfObject(std::string("NetStream.Publish.Start"));
         objects["description"] = AmfObject(std::string("Start publising."));
 		server->AddSession(stream_path_);
+		rtmp_session_ = server->GetSession(stream_path_);
+
+		if (server) {
+			server->NotifyEvent("publish.start", stream_path_);
+		}
     }
 
     amf_encoder_.encodeObjects(objects);     
@@ -565,10 +573,10 @@ bool RtmpConnection::HandlePublish()
 		is_publishing_ = true;
     }
 
-    auto session = server->GetSession(stream_path_);
+    auto session = rtmp_session_.lock();
     if(session) {
 		session->SetGopCache(max_gop_cache_len_);
-		session->AddRtmpClient(std::dynamic_pointer_cast<RtmpConnection>(shared_from_this()));
+		session->AddSink(std::dynamic_pointer_cast<RtmpSink>(shared_from_this()));
     }        
 
     return true;
@@ -576,7 +584,7 @@ bool RtmpConnection::HandlePublish()
 
 bool RtmpConnection::HandlePlay()
 {
-	LOG_INFO("[Play] app: %s, stream name: %s, stream path: %s\n", app_.c_str(), stream_name_.c_str(), stream_path_.c_str());
+	//LOG_INFO("[Play] app: %s, stream name: %s, stream path: %s\n", app_.c_str(), stream_name_.c_str(), stream_path_.c_str());
 
 	auto server = rtmp_server_.lock();
 	if (!server) {
@@ -619,11 +627,16 @@ bool RtmpConnection::HandlePlay()
              
     connection_state_ = START_PLAY; 
     
-    auto session = server->GetSession(stream_path_);
+	rtmp_session_ = server->GetSession(stream_path_);
+	auto session = rtmp_session_.lock();
     if(session) {
-		session->AddRtmpClient(std::dynamic_pointer_cast<RtmpConnection>(shared_from_this()));
+		session->AddSink(std::dynamic_pointer_cast<RtmpSink>(shared_from_this()));
     }  
     
+	if (server) {
+		server->NotifyEvent("play.start", stream_path_);
+	}
+
     return true;
 }
 
@@ -642,13 +655,20 @@ bool RtmpConnection::HandleDeleteStream()
 	}
 
     if(stream_path_ != "") {
-        auto session = server->GetSession(stream_path_);
-        if(session != nullptr) {   
-			auto conn = std::dynamic_pointer_cast<RtmpConnection>(shared_from_this());
+        auto session = rtmp_session_.lock();
+        if(session) {   
+			auto conn = std::dynamic_pointer_cast<RtmpSink>(shared_from_this());
 			task_scheduler_->AddTimer([session, conn] {
-				session->RemoveRtmpClient(conn);
+				session->RemoveSink(conn);
 				return false;
 			}, 1);
+
+			if (is_publishing_) {
+				server->NotifyEvent("publish.stop", stream_path_);
+			}
+			else if (is_playing_) {
+				server->NotifyEvent("play.stop", stream_path_);
+			}
         }  
 
 		is_playing_ = false;
@@ -737,19 +757,19 @@ bool RtmpConnection::HandleOnStatus(RtmpMessage& rtmp_msg)
 	return ret;
 }
 
-bool RtmpConnection::SendMetaData(AmfObjects metaData)
+bool RtmpConnection::SendMetaData(AmfObjects meta_data)
 {
     if(this->IsClosed()) {
         return false;
     }
 
-	if (metaData.size() == 0) {
+	if (meta_data.size() == 0) {
 		return false;
 	}
 
     amf_encoder_.reset(); 
     amf_encoder_.encodeString("onMetaData", 10);
-    amf_encoder_.encodeECMA(metaData);
+    amf_encoder_.encodeECMA(meta_data);
     if(!this->SendNotifyMessage(RTMP_CHUNK_DATA_ID, amf_encoder_.data(), amf_encoder_.size())) {
         return false;
     }
@@ -794,7 +814,7 @@ void RtmpConnection::SetChunkSize()
     SendRtmpChunks(RTMP_CHUNK_CONTROL_ID, rtmp_msg);
 }
 
-void RtmpConnection::setPlayCB(const PlayCallback& cb)
+void RtmpConnection::SetPlayCB(const PlayCallback& cb)
 {
 	play_cb_ = cb;
 }

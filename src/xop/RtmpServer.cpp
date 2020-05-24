@@ -8,6 +8,7 @@ using namespace xop;
 RtmpServer::RtmpServer(EventLoop* event_loop)
 	: TcpServer(event_loop)
 	, event_loop_(event_loop)
+	, event_callbacks_(10)
 {
 	event_loop_->AddTimer([this] {
 		std::lock_guard<std::mutex> lock(mutex_);
@@ -26,6 +27,22 @@ RtmpServer::RtmpServer(EventLoop* event_loop)
 RtmpServer::~RtmpServer()
 {
     
+}
+
+void RtmpServer::SetEventCallback(EventCallback event_cb)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	event_callbacks_.push_back(event_cb);
+}
+
+void RtmpServer::NotifyEvent(std::string event_type, std::string stream_path)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	for (auto event_cb : event_callbacks_) {
+		if (event_cb) {
+			event_cb(event_type, stream_path);
+		}
+	}
 }
 
 std::shared_ptr<RtmpServer> RtmpServer::Create(xop::EventLoop* event_loop)
@@ -76,7 +93,6 @@ bool RtmpServer::HasPublisher(std::string stream_path)
        return false;
     }
     
-    return (session->getPublisher()!=nullptr);
+    return (session->GetPublisher()!=nullptr);
 }
-
 
