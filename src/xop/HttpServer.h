@@ -1,10 +1,10 @@
 #ifndef HTTP_SERVER_H
 #define HTTP_SERVER_H
 
+#include "HttpConnection.h"
 extern "C" {
 #include "mongoose/mongoose.h"
 }
-#include "HttpConnection.h"
 #include <cstdint>
 #include <thread>
 #include <memory>

@@ -113,7 +113,7 @@ void RtmpSession::SaveGop(uint8_t type, uint64_t timestamp, std::shared_ptr<char
 		av_frame->type = type;
 		av_frame->timestamp = timestamp;		
 		av_frame->size = size;
-		av_frame->data.reset(new char[size]);
+		av_frame->data.reset(new char[size], std::default_delete<char[]>());
 		memcpy(av_frame->data.get(), data.get(), size);
 		gop->push_back(av_frame);
 	}

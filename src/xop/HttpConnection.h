@@ -1,10 +1,10 @@
 #ifndef HTTP_CONNECTION_H
 #define HTTP_CONNECTION_H
 
+#include "net/Socket.h"
 extern "C" {
 #include "mongoose/mongoose.h"
 }
-#include "net/Socket.h"
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -36,7 +36,7 @@ protected:
 		uint32_t write_index;
 	} Packet;
 
-	std::unique_ptr<std::queue<Packet>> buffer_;
+	std::queue<Packet> buffer_;
 	size_t max_queue_length_ = 0;
 
 	static const size_t kMaxQueueLength = 1024;

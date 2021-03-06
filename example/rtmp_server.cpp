@@ -270,13 +270,13 @@ int TestRtmpPublisher(xop::EventLoop *event_loop)
 					xop::Nal sps = xop::H264Parser::findNal(frame_buf, frameSize);
 					if (sps.first != nullptr && sps.second != nullptr && *sps.first == 0x67) {
 						media_info.sps_size = (uint32_t)(sps.second - sps.first + 1);
-						media_info.sps.reset(new uint8_t[media_info.sps_size]);
+						media_info.sps.reset(new uint8_t[media_info.sps_size], std::default_delete<uint8_t[]>());
 						memcpy(media_info.sps.get(), sps.first, media_info.sps_size);
 
 						xop::Nal pps = xop::H264Parser::findNal(sps.second, frameSize - (int)(sps.second - frame_buf));
 						if (pps.first != nullptr && pps.second != nullptr && *pps.first == 0x68) {
 							media_info.pps_size = (uint32_t)(pps.second - pps.first + 1);
-							media_info.pps.reset(new uint8_t[media_info.pps_size]);
+							media_info.pps.reset(new uint8_t[media_info.pps_size], std::default_delete<uint8_t[]>());
 							memcpy(media_info.pps.get(), pps.first, media_info.pps_size);
 
 							has_sps_pps = true;

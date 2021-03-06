@@ -98,7 +98,7 @@ int RtmpChunk::ParseChunkHeader(BufferReader& buffer)
 		uint32_t length = ReadUint24BE((char*)header.length);
 		if (rtmp_msg.length != length || !rtmp_msg.payload) {
 			rtmp_msg.length = length;
-			rtmp_msg.payload.reset(new char[rtmp_msg.length]);
+			rtmp_msg.payload.reset(new char[rtmp_msg.length], std::default_delete<char[]>());
 		}
 		rtmp_msg.index = 0;
 		rtmp_msg.type_id = header.type_id;
@@ -170,7 +170,7 @@ int RtmpChunk::ParseChunkBody(BufferReader& buffer)
 	bytes_used += chunk_size;
 	rtmp_msg.index += chunk_size;
 
-	if (rtmp_msg.index >= rtmp_msg.length || 
+	if (rtmp_msg.index >= rtmp_msg.length ||
 		rtmp_msg.index%in_chunk_size_ == 0) {
 		state_ = PARSE_HEADER;
 	}

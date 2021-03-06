@@ -30,7 +30,7 @@ int RtmpPublisher::SetMediaInfo(MediaInfo media_info)
 	if (media_info_.audio_codec_id == RTMP_CODEC_ID_AAC) {
 		if (media_info_.audio_specific_config_size > 0) {
 			aac_sequence_header_size_ = media_info_.audio_specific_config_size + 2;
-			aac_sequence_header_.reset(new char[aac_sequence_header_size_]);
+			aac_sequence_header_.reset(new char[aac_sequence_header_size_], std::default_delete<char[]>());
 			uint8_t *data = (uint8_t *)aac_sequence_header_.get();
 			uint8_t sound_rate = 3; //for aac awlays 3
 			uint8_t soundz_size = 1; //0:8bit , 1:16bit
@@ -57,7 +57,7 @@ int RtmpPublisher::SetMediaInfo(MediaInfo media_info)
 
 	if (media_info_.video_codec_id == RTMP_CODEC_ID_H264) {
 		if (media_info_.sps_size > 0 && media_info_.pps > 0) {
-			avc_sequence_header_.reset(new char[4096]);
+			avc_sequence_header_.reset(new char[4096], std::default_delete<char[]>());
 			uint8_t *data = (uint8_t *)avc_sequence_header_.get();
 			uint32_t index = 0;
 
@@ -108,13 +108,13 @@ int RtmpPublisher::OpenUrl(std::string url, int msec, std::string& status)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
 	
-	static xop::Timestamp tp;
+	static xop::Timestamp timestamp;
 	int timeout = msec;
 	if (timeout <= 0) {
 		timeout = 10000;
 	}
 
-	tp.reset();
+	timestamp.Reset();
 
 	if (this->ParseRtmpUrl(url) != 0) {
 		LOG_INFO("[RtmpPublisher] rtmp url(%s) was illegal.\n", url.c_str());
@@ -147,7 +147,7 @@ int RtmpPublisher::OpenUrl(std::string url, int msec, std::string& status)
 		rtmp_conn_->Handshake();
 	});
 
-	timeout -= (int)tp.elapsed();
+	timeout -= (int)timestamp.Elapsed();
 	if (timeout < 0) {
 		timeout = 1000;
 	}
@@ -237,7 +237,7 @@ int RtmpPublisher::PushVideoFrame(uint8_t *data, uint32_t size)
 		if (!has_key_frame_) {
 			if (this->IsKeyFrame(data, size)) {
 				has_key_frame_ = true;
-				timestamp_.reset();
+				timestamp_.Reset();
 				//task_scheduler_->addTriggerEvent([=]() {
 					rtmp_conn_->SendVideoData(0, avc_sequence_header_, avc_sequence_header_size_);
 					rtmp_conn_->SendAudioData(0, aac_sequence_header_, aac_sequence_header_size_);
@@ -248,7 +248,7 @@ int RtmpPublisher::PushVideoFrame(uint8_t *data, uint32_t size)
 			}
 		}
 
-		uint64_t timestamp = timestamp_.elapsed();
+		uint64_t timestamp = timestamp_.Elapsed();
 		//uint64_t timestamp_delta = 0;
 		//if (timestamp < video_timestamp_)
 		//{
@@ -257,7 +257,7 @@ int RtmpPublisher::PushVideoFrame(uint8_t *data, uint32_t size)
 		//timestamp_delta = timestamp - video_timestamp_;
 		//video_timestamp_ = timestamp;
 
-		std::shared_ptr<char> payload(new char[size + 4096]);
+		std::shared_ptr<char> payload(new char[size + 4096], std::default_delete<char[]>());
 		uint32_t payload_size = 0;
 
 		uint8_t *buffer = (uint8_t *)payload.get();
@@ -294,7 +294,7 @@ int RtmpPublisher::PushAudioFrame(uint8_t *data, uint32_t size)
 	}
 
 	if (has_key_frame_ && media_info_.audio_codec_id == RTMP_CODEC_ID_AAC) {
-		uint64_t timestamp = timestamp_.elapsed();
+		uint64_t timestamp = timestamp_.Elapsed();
 		//uint64_t timestamp_delta = 0;
 		//if (timestamp < audio_timestamp_)
 		//{
@@ -304,7 +304,7 @@ int RtmpPublisher::PushAudioFrame(uint8_t *data, uint32_t size)
 		//audio_timestamp_ = timestamp;
 		
 		uint32_t payload_size = size + 2;
-		std::shared_ptr<char> payload(new char[size + 2]);
+		std::shared_ptr<char> payload(new char[size + 2], std::default_delete<char[]>());
 		payload.get()[0] = audio_tag_;
 		payload.get()[1] = 1; // 0: aac sequence header, 1: aac raw data
 		memcpy(payload.get() + 2, data, size);

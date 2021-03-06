@@ -1,6 +1,8 @@
 #ifndef XOP_HTTP_FLV_SERVER_H
 #define XOP_HTTP_FLV_SERVER_H
 
+#include "net/SocketUtil.h"
+#include "net/Logger.h"
 #include "HttpServer.h"
 #include "HttpFlvConnection.h"
 #include <mutex>
